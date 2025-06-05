@@ -1,12 +1,20 @@
 <template>
   <div id="app">
-    <router-view></router-view>
+    <nav-bar></nav-bar>
+    <div class="main-container">
+      <router-view></router-view>
+    </div>
   </div>
 </template>
 
 <script>
+import NavBar from '@/components/NavBar.vue'
+
 export default {
-  name: 'App'
+  name: 'App',
+  components: {
+    NavBar
+  }
 }
 </script>
 
@@ -28,6 +36,11 @@ html, body {
 #app {
   min-height: 100vh;
   background-color: #f5f6f7;
+  
+  .main-container {
+    padding-top: 60px; // 导航栏的高度
+    min-height: calc(100vh - 60px); // 减去导航栏高度
+  }
 }
 
 // 全局滚动条样式
@@ -51,11 +64,18 @@ html, body {
 
 // Element UI 全局样式覆盖
 .el-header {
+  padding: 0 !important;
   height: 60px !important;
 }
 
 .el-menu {
   border: none !important;
+  background-color: transparent !important;
+}
+
+.el-menu--horizontal > .el-menu-item {
+  height: 60px !important;
+  line-height: 60px !important;
 }
 
 .el-dropdown-link {

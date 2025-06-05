@@ -6,10 +6,13 @@
     <el-card class="vip-status">
       <div class="status-header">
         <div class="user-info">
-          <img src="@/assets/vip-icon.png" class="vip-icon">
+          <el-avatar :size="60" icon="el-icon-user"></el-avatar>
           <div class="info">
-            <h3>普通会员</h3>
-            <p>有效期至：2024-12-31</p>
+            <h3>{{ username }}</h3>
+            <div class="vip-badge" :class="{ active: isVip }">
+              <i class="el-icon-trophy"></i>
+              {{ isVip ? 'VIP会员' : '普通用户' }}
+            </div>
           </div>
         </div>
         <div class="vip-benefits">
