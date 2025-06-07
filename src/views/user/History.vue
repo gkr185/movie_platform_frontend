@@ -26,7 +26,7 @@
           <el-timeline-item
             v-for="item in watchHistory"
             :key="item.id"
-            :timestamp="item.date"
+            :timestamp="formatTime(item.watchTime)"
             placement="top"
           >
             <el-card class="history-card">
@@ -34,10 +34,18 @@
                 <img :src="item.cover" class="history-cover">
                 <div class="history-info">
                   <h3>{{ item.title }}</h3>
-                  <p class="progress">观看至 {{ item.progress }}</p>
+                  <p class="progress">观看进度 {{ formatProgress(item.progress) }}</p>
                   <div class="actions">
-                    <el-button type="primary" size="small">继续观看</el-button>
-                    <el-button type="text" size="small">删除记录</el-button>
+                    <el-button 
+                      type="primary" 
+                      size="small"
+                      @click="handleContinueWatch(item)"
+                    >继续观看</el-button>
+                    <el-button 
+                      type="text" 
+                      size="small"
+                      @click="handleRemoveHistory(item.id)"
+                    >删除记录</el-button>
                   </div>
                 </div>
               </div>
@@ -59,6 +67,7 @@ import { computed } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import { format } from 'date-fns'
 
 export default {
   name: 'WatchHistory',
@@ -66,17 +75,60 @@ export default {
     const store = useStore()
     const router = useRouter()
     
-    const isLoggedIn = computed(() => store.getters.isLoggedIn)
-    const watchHistory = computed(() => store.getters.watchHistory)
+    const isLoggedIn = computed(() => store.getters['user/isLoggedIn'])
+    const watchHistory = computed(() => store.getters['user/watchHistory'])
 
-    const handleClearHistory = () => {
-      // Implement the logic to clear the history
+    const handleClearHistory = async () => {
+      try {
+        await ElMessageBox.confirm(
+          '确定要清空所有观看历史吗？此操作不可恢复。',
+          '提示',
+          {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+        await store.dispatch('user/clearHistory')
+        ElMessage.success('观看历史已清空')
+      } catch (error) {
+        if (error !== 'cancel') {
+          ElMessage.error('操作失败，请重试')
+        }
+      }
+    }
+
+    const handleRemoveHistory = async (movieId) => {
+      try {
+        await store.dispatch('user/removeFromHistory', movieId)
+        ElMessage.success('记录已删除')
+      } catch (error) {
+        ElMessage.error('删除失败，请重试')
+      }
+    }
+
+    const handleContinueWatch = (movie) => {
+      router.push(`/movie/${movie.id}`)
+    }
+
+    const formatTime = (time) => {
+      if (!time) return ''
+      return format(new Date(time), 'yyyy-MM-dd HH:mm')
+    }
+
+    const formatProgress = (progress) => {
+      if (!progress) return '0%'
+      return `${Math.round(progress * 100)}%`
     }
 
     return {
       isLoggedIn,
       watchHistory,
-      handleClearHistory
+      handleClearHistory,
+      handleRemoveHistory,
+      handleContinueWatch,
+      formatTime,
+      formatProgress
     }
   }
 }

@@ -5,7 +5,7 @@ export const mockMovies = {
       id: 1, 
       title: '流浪地球2', 
       score: 8.6, 
-      cover: require('@/assets/wdzsj.jpg'),
+      cover: '/uploads/posters/wdzsj.jpg',
       year: 2023,
       quality: '4K',
       resolution: 'ULTRA HD',
@@ -120,7 +120,7 @@ export const mockRankings = {
       id: 1,
       rank: 1,
       title: "流浪地球2",
-      poster: require('@/assets/wdzsj.jpg'),
+      poster: '/uploads/posters/wdzsj.jpg',
       hot: 9999,
       change: 0
     },
@@ -173,8 +173,10 @@ export const mockRankings = {
 export const mockUsers = {
   test: {
     id: 1,
+    username: '123',
+    password: '123123',
     name: '测试用户',
-    avatar: require('@/assets/avatar.jpg'),
+    avatar:  '/uploads/avatars/avatar.jpg',
     email: 'test@example.com',
     vip: true,
     vipExpireDate: '2024-12-31',
@@ -182,7 +184,7 @@ export const mockUsers = {
       {
         id: 1,
         title: '流浪地球2',
-        cover: require('@/assets/wdzsj.jpg'),
+        cover: '/uploads/posters/wdzsj.jpg',
         watchTime: '2024-01-20 14:30',
         progress: 0.8
       },
@@ -230,8 +232,49 @@ export const mockUsers = {
       autoPlay: true,
       notifications: true
     }
+  },
+  admin: {
+    id: 2,
+    username: 'aaa',
+    password: '123123',
+    name: '管理员',
+    avatar:  '/uploads/avatars/avatar.jpg',
+    email: 'admin@example.com',
+    vip: true,
+    vipExpireDate: '2025-12-31',
+    watchHistory: [],
+    favorites: [],
+    settings: {
+      theme: 'dark',
+      playbackQuality: '4K',
+      autoPlay: true,
+      notifications: true
+    }
+  },
+  user1: {
+    id: 3,
+    username: 'user1',
+    password: 'user123',
+    name: '普通用户',
+    avatar: '',
+    email: 'user1@example.com',
+    vip: false,
+    watchHistory: [],
+    favorites: [],
+    settings: {
+      theme: 'light',
+      playbackQuality: '1080p',
+      autoPlay: true,
+      notifications: true
+    }
   }
 }
+
+// 注册用户存储
+export const registeredUsers = new Map()
+Object.values(mockUsers).forEach(user => {
+  registeredUsers.set(user.username, user)
+})
 
 // VIP套餐数据
 export const mockVIPPlans = [
@@ -279,3 +322,157 @@ export const mockVIPPlans = [
     recommended: true
   }
 ]
+
+// 评论数据
+export const mockComments = new Map([
+  [1, [ // 电影ID为1的评论
+    {
+      id: 101,
+      content: '特效太震撼了！郭帆导演和团队的工业精神令人敬佩，这就是中国科幻电影的未来！',
+      score: 9,
+      createTime: '2024-01-20T14:30:00.000Z',
+      likes: 256,
+      isLiked: false,
+      isPrivate: false,
+      user: {
+        id: 1,
+        name: '测试用户',
+        avatar: '/uploads/avatars/avatar.jpg',
+        isVIP: true
+      },
+      replies: [
+        {
+          id: 1001,
+          content: '同意！尤其是月球基地那段，太震撼了！',
+          createTime: '2024-01-20T15:00:00.000Z',
+          user: {
+            id: 3,
+            name: '普通用户',
+            avatar: '',
+            isVIP: false
+          }
+        },
+        {
+          id: 1002,
+          content: '期待流浪地球3！',
+          createTime: '2024-01-20T15:30:00.000Z',
+          user: {
+            id: 2,
+            name: '管理员',
+            avatar: '/uploads/avatars/avatar.jpg',
+            isVIP: true
+          },
+          replyTo: {
+            id: 3,
+            name: '普通用户'
+          }
+        }
+      ],
+      replyCount: 2
+    },
+    {
+      id: 102,
+      content: '剧情紧凑，演员演技在线。吴京和刘德华的对手戏很精彩，李雪健老师的表演更是实力派！',
+      score: 8.5,
+      createTime: '2024-01-21T09:15:00.000Z',
+      likes: 128,
+      isLiked: false,
+      isPrivate: false,
+      user: {
+        id: 2,
+        name: '管理员',
+        avatar: '/uploads/avatars/avatar.jpg',
+        isVIP: true
+      },
+      replies: [],
+      replyCount: 0
+    },
+    {
+      id: 103,
+      content: '故事情节有些复杂，但是制作水准确实很高。',
+      score: 7.5,
+      createTime: '2024-01-21T10:20:00.000Z',
+      likes: 64,
+      isLiked: false,
+      isPrivate: false,
+      user: {
+        id: 3,
+        name: '普通用户',
+        avatar: '',
+        isVIP: false
+      },
+      replies: [],
+      replyCount: 0
+    }
+  ]],
+  [2, [ // 电影ID为2的评论
+    {
+      id: 201,
+      content: '张艺谋导演的悬疑手法越来越成熟了，节奏把控得很好！',
+      score: 8.5,
+      createTime: '2024-01-22T13:40:00.000Z',
+      likes: 189,
+      isLiked: false,
+      isPrivate: false,
+      user: {
+        id: 1,
+        name: '测试用户',
+        avatar: '/uploads/avatars/avatar.jpg',
+        isVIP: true
+      },
+      replies: [],
+      replyCount: 0
+    }
+  ]],
+  [3, [ // 电影ID为3的评论
+    {
+      id: 301,
+      content: '王一博的表演有突破，整体节奏很紧凑，是一部不错的谍战片！',
+      score: 8.0,
+      createTime: '2024-01-23T16:50:00.000Z',
+      likes: 145,
+      isLiked: false,
+      isPrivate: false,
+      user: {
+        id: 2,
+        name: '管理员',
+        avatar: '/uploads/avatars/avatar.jpg',
+        isVIP: true
+      },
+      replies: [],
+      replyCount: 0
+    }
+  ]]
+])
+
+// 评论回复的模拟数据
+export const mockReplies = new Map([
+  [101, [ // 评论ID为101的回复
+    {
+      id: 1001,
+      content: '同意！尤其是月球基地那段，太震撼了！',
+      createTime: '2024-01-20T15:00:00.000Z',
+      user: {
+        id: 3,
+        name: '普通用户',
+        avatar: '',
+        isVIP: false
+      }
+    },
+    {
+      id: 1002,
+      content: '期待流浪地球3！',
+      createTime: '2024-01-20T15:30:00.000Z',
+      user: {
+        id: 2,
+        name: '管理员',
+        avatar: '/uploads/avatars/avatar.jpg',
+        isVIP: true
+      },
+      replyTo: {
+        id: 3,
+        name: '普通用户'
+      }
+    }
+  ]]
+])

@@ -33,12 +33,11 @@
             </div>
             <div class="action-buttons">
               <el-button type="text" @click="handleUserCenter">个人中心</el-button>
-              <el-button type="text" @click="handleLogout">退出登录</el-button>
             </div>
           </div>
           <!-- 未登录状态显示登录按钮 -->
           <div class="login-action" v-else>
-            <el-button type="text" @click="$router.push('/user/login')">登录</el-button>
+            <el-button type="text" @click="handleLogin">登录</el-button>
           </div>
           <!-- 主题切换按钮（始终显示） -->
           <div class="theme-action">
@@ -59,7 +58,7 @@
 <script>
 import NavMenuItems from './NavMenuItems.vue'
 import MenuButton from './MenuButton.vue'
-import { mapState } from 'vuex'
+import { mapState, mapGetters } from 'vuex'
 import { Moon, Sunny } from '@element-plus/icons-vue'
 
 export default {
@@ -82,18 +81,19 @@ export default {
     }
   },
   computed: {
+    ...mapGetters('user', [
+      'isLoggedIn',
+      'username',
+      'userAvatar'
+    ]),
     ...mapState({
-      isLoggedIn: state => !!state.token,
-      username: state => state.user?.name || '',
-      userAvatar: state => state.user?.avatar || '',
       currentTheme: state => state.theme
     })
   },
   methods: {
     close() {
       this.isClosing = true
-      // 等待所有动画完成后再关闭
-      const animationDuration = 500 // 总动画时长
+      const animationDuration = 500
       setTimeout(() => {
         this.$emit('update:isOpen', false)
         this.isClosing = false
@@ -103,10 +103,11 @@ export default {
       this.$router.push('/user/profile')
       this.close()
     },
-    handleLogout() {
-      this.$store.commit('LOGOUT')
-      this.$message.success('退出登录成功')
-      this.$router.push('/login')
+    handleLogin() {
+      this.$router.push({
+        path: '/user/login',
+        query: { redirect: this.$route.fullPath }
+      })
       this.close()
     },
     toggleTheme() {

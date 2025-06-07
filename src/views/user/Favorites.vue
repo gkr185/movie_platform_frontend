@@ -64,8 +64,8 @@ export default {
     const router = useRouter()
     const searchQuery = ref('')
     
-    const isLoggedIn = computed(() => store.getters.isLoggedIn)
-    const favorites = computed(() => store.getters.favorites)
+    const isLoggedIn = computed(() => store.getters['user/isLoggedIn'])
+    const favorites = computed(() => store.getters['user/favorites'])
     const filteredFavorites = computed(() => {
       if (!searchQuery.value) return favorites.value
       const query = searchQuery.value.toLowerCase()
@@ -101,7 +101,7 @@ export default {
             type: 'warning'
           }
         )
-        await store.dispatch('removeFromFavorites', movieId)
+        await store.dispatch('user/removeFromFavorites', movieId)
         ElMessage.success('已取消收藏')
       } catch (error) {
         if (error !== 'cancel') {

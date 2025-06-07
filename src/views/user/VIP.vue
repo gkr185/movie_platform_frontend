@@ -134,14 +134,16 @@ export default {
     const paymentMethod = ref('wechat')
     const selectedPlan = ref(null)
     
-    const isLoggedIn = computed(() => store.getters.isLoggedIn)
-    const isVIP = computed(() => store.getters.isVIP)
-    const vipExpireDate = computed(() => store.getters.vipExpireDate)
-    const vipPlans = computed(() => store.getters.vipPlans)
+    const isLoggedIn = computed(() => store.getters['user/isLoggedIn'])
+    const isVIP = computed(() => store.getters['user/isVIP'])
+    const vipExpireDate = computed(() => store.getters['user/vipExpireDate'])
+    const vipPlans = computed(() => store.getters['user/vipPlans'] || [])
 
     onMounted(async () => {
-      if (!vipPlans.value.length) {
-        await store.dispatch('fetchVIPPlans')
+      try {
+        await store.dispatch('user/fetchVIPPlans')
+      } catch (error) {
+        ElMessage.error('获取会员套餐失败')
       }
     })
 
@@ -150,12 +152,19 @@ export default {
       paymentDialogVisible.value = true
     }
 
-    const handleConfirmPayment = () => {
-      // 这里应该调用实际的支付接口
-      ElMessage.success('支付成功！')
-      paymentDialogVisible.value = false
-      // 刷新用户信息
-      store.dispatch('fetchUserInfo')
+    const handleConfirmPayment = async () => {
+      try {
+        await store.dispatch('user/purchaseVIP', {
+          planId: selectedPlan.value.id,
+          paymentMethod: paymentMethod.value
+        })
+        ElMessage.success('支付成功！')
+        paymentDialogVisible.value = false
+        // 刷新用户信息
+        await store.dispatch('user/fetchUserInfo')
+      } catch (error) {
+        ElMessage.error('支付失败，请重试')
+      }
     }
 
     return {

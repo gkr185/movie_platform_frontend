@@ -7,7 +7,7 @@
       <el-form 
         :model="loginForm" 
         :rules="rules" 
-        ref="loginForm" 
+        ref="loginFormRef" 
         label-width="0"
         @submit.prevent="handleLogin"
       >
@@ -55,122 +55,90 @@
         </div>
       </div>
     </el-card>
-
-    <!-- 快捷导航菜单 -->
-    <el-dialog
-      title="欢迎回来"
-      v-model="showQuickNav"
-      width="400px"
-      center
-      :show-close="false"
-      :close-on-click-modal="false"
-      :close-on-press-escape="false"
-    >
-      <div class="quick-nav">
-        <el-row :gutter="20">
-          <el-col :span="8">
-            <div class="nav-item" @click="navigateTo('/user/profile')">
-              <i class="el-icon-user"></i>
-              <span>个人资料</span>
-            </div>
-          </el-col>
-          <el-col :span="8">
-            <div class="nav-item" @click="navigateTo('/user/vip')">
-              <i class="el-icon-trophy"></i>
-              <span>会员中心</span>
-            </div>
-          </el-col>
-          <el-col :span="8">
-            <div class="nav-item" @click="navigateTo('/user/favorites')">
-              <i class="el-icon-star-off"></i>
-              <span>我的收藏</span>
-            </div>
-          </el-col>
-        </el-row>
-      </div>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="goToHome">进入首页</el-button>
-          <el-button type="primary" @click="goToUserCenter">进入用户中心</el-button>
-        </span>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script>
-import { mapActions } from 'vuex'
+import { ref, reactive } from 'vue'
+import { useStore } from 'vuex'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
 
 export default {
   name: 'Login',
-  data() {
-    // 自定义用户名验证规则
-    const validateUsername = (rule, value, callback) => {
-      if (!value) {
-        callback(new Error('请输入用户名'))
-      } else if (value.length < 3) {
-        callback(new Error('用户名长度不能小于3位'))
-      } else {
-        callback()
-      }
+  setup() {
+    const store = useStore()
+    const router = useRouter()
+    const route = useRoute()
+    const loginFormRef = ref(null)
+    const loading = ref(false)
+    const rememberMe = ref(false)
+
+    const loginForm = reactive({
+      username: '',
+      password: ''
+    })
+
+    // 表单验证规则
+    const rules = {
+      username: [
+        { 
+          required: true, 
+          message: '请输入用户名', 
+          trigger: 'blur' 
+        },
+        { 
+          min: 3, 
+          message: '用户名长度不能小于3位', 
+          trigger: 'blur' 
+        }
+      ],
+      password: [
+        { 
+          required: true, 
+          message: '请输入密码', 
+          trigger: 'blur' 
+        },
+        { 
+          min: 6, 
+          message: '密码长度不能小于6位', 
+          trigger: 'blur' 
+        }
+      ]
     }
-    // 自定义密码验证规则
-    const validatePassword = (rule, value, callback) => {
-      if (!value) {
-        callback(new Error('请输入密码'))
-      } else if (value.length < 6) {
-        callback(new Error('密码长度不能小于6位'))
-      } else {
-        callback()
+
+    const handleLogin = async () => {
+      if (!loginFormRef.value) return
+
+      try {
+        const valid = await loginFormRef.value.validate()
+        if (valid) {
+          loading.value = true
+          await store.dispatch('user/login', loginForm)
+          ElMessage.success('登录成功')
+          
+          // 检查是否有重定向地址
+          const redirect = route.query.redirect
+          if (redirect && !redirect.includes('/user/login')) {
+            router.push(redirect)
+          } else {
+            router.push('/') // 默认跳转到主页
+          }
+        }
+      } catch (error) {
+        ElMessage.error(error.message || '登录失败，请重试')
+      } finally {
+        loading.value = false
       }
     }
 
     return {
-      loginForm: {
-        username: '',
-        password: ''
-      },
-      rememberMe: false,
-      loading: false,
-      showQuickNav: false,
-      rules: {
-        username: [
-          { required: true, trigger: 'blur', validator: validateUsername }
-        ],
-        password: [
-          { required: true, trigger: 'blur', validator: validatePassword }
-        ]
-      }
-    }
-  },
-  methods: {
-    ...mapActions(['login']),
-    async handleLogin() {
-      try {
-        const valid = await this.$refs.loginForm.validate()
-        if (valid) {
-          this.loading = true
-          await this.login(this.loginForm)
-          this.$message.success('登录成功')
-          this.showQuickNav = true
-        }
-      } catch (error) {
-        this.$message.error(error.message || '登录失败，请重试')
-      } finally {
-        this.loading = false
-      }
-    },
-    navigateTo(path) {
-      this.showQuickNav = false
-      this.$router.push(path)
-    },
-    goToHome() {
-      this.showQuickNav = false
-      this.$router.push('/')
-    },
-    goToUserCenter() {
-      this.showQuickNav = false
-      this.$router.push('/user')
+      loginForm,
+      loginFormRef,
+      loading,
+      rememberMe,
+      rules,
+      handleLogin
     }
   }
 }
@@ -201,27 +169,29 @@ export default {
 
   h2 {
     color: var(--text-color);
+    font-size: 24px;
     margin: 0;
   }
 }
 
 .login-button {
   width: 100%;
+  margin-top: 10px;
 }
 
 .login-options {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: -10px;
+  margin-top: 15px;
+}
 
-  .register-link {
-    color: var(--text-color-light);
-    text-decoration: none;
+.register-link {
+  color: var(--el-color-primary);
+  text-decoration: none;
 
-    &:hover {
-      color: #409EFF;
-    }
+  &:hover {
+    text-decoration: underline;
   }
 }
 
@@ -243,7 +213,7 @@ export default {
     }
 
     span {
-      padding: 0 10px;
+      padding: 0 15px;
       font-size: 14px;
     }
   }
@@ -253,38 +223,11 @@ export default {
     justify-content: space-around;
 
     .el-button {
-      color: var(--text-color-light);
-
-      &:hover {
-        color: #409EFF;
-      }
-    }
-  }
-}
-
-.quick-nav {
-  .nav-item {
-    text-align: center;
-    padding: 20px 0;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: all 0.3s;
-    background-color: var(--input-bg-color);
-    color: var(--text-color);
-
-    &:hover {
-      background-color: #409EFF;
-      color: #fff;
-    }
-
-    i {
-      font-size: 24px;
-      margin-bottom: 8px;
-      display: block;
-    }
-
-    span {
       font-size: 14px;
+
+      .el-icon {
+        margin-right: 5px;
+      }
     }
   }
 }

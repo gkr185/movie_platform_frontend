@@ -92,13 +92,13 @@ export default {
   setup() {
     const store = useStore()
     
-    const currentUser = computed(() => store.getters.currentUser)
-    const isVIP = computed(() => store.getters.isVIP)
-    const vipExpireDate = computed(() => store.getters.vipExpireDate)
-    const watchHistory = computed(() => store.getters.watchHistory)
-    const favorites = computed(() => store.getters.favorites)
+    const currentUser = computed(() => store.getters['user/currentUser'])
+    const isVIP = computed(() => store.getters['user/isVIP'])
+    const vipExpireDate = computed(() => store.getters['user/vipExpireDate'])
+    const watchHistory = computed(() => store.getters['user/watchHistory'])
+    const favorites = computed(() => store.getters['user/favorites'])
     
-    const settings = computed(() => store.getters.userSettings || {
+    const settings = computed(() => store.getters['user/userSettings'] || {
       theme: 'light',
       playbackQuality: '1080p',
       autoPlay: true,
@@ -109,7 +109,7 @@ export default {
 
     const handleThemeChange = async (value) => {
       try {
-        await store.dispatch('updateUserSettings', {
+        await store.dispatch('user/updateUserSettings', {
           theme: value ? 'dark' : 'light'
         })
         store.commit('TOGGLE_THEME')
@@ -121,7 +121,7 @@ export default {
 
     const handleSettingChange = async () => {
       try {
-        await store.dispatch('updateUserSettings', settings.value)
+        await store.dispatch('user/updateUserSettings', settings.value)
         ElMessage.success('设置已更新')
       } catch (error) {
         ElMessage.error('更新设置失败')

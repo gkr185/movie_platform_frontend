@@ -13,21 +13,7 @@ const routes = [
     name: 'Ranking',
     component: () => import('@/views/Ranking.vue')
   },
-  {
-    path: '/category',
-    name: 'Category',
-    component: () => import('@/views/Category.vue')
-  },
-  {
-    path: '/newest',
-    name: 'Newest',
-    component: () => import('@/views/Newest.vue')
-  },
-  {
-    path: '/movie/:id',
-    name: 'MovieDetail',
-    component: () => import('@/views/MovieDetail.vue')
-  },
+  
   {
     path: '/news',
     name: 'News',
@@ -39,19 +25,45 @@ const routes = [
     component: () => import('@/views/news/Detail.vue')
   },
   {
+    // 电影相关路由
+    path: '/movie',
+    component: () => import('@/views/movie/Index.vue'),
+    children: [
+      {
+        path: ':id',
+        name: 'MovieDetail',
+        component: () => import('@/views/movie/Detail.vue'),
+        props: true
+      }
+    ]
+  },
+  {
     // 用户相关路由
     path: '/user',
     component: () => import('@/views/user/Index.vue'),
     children: [
       {
+        path: '',
+        redirect: to => {
+          const isLoggedIn = store.getters['user/isLoggedIn']
+          if (isLoggedIn) {
+            return '/user/profile'
+          } else {
+            return '/'
+          }
+        }
+      },
+      {
         path: 'login',
         name: 'Login',
-        component: () => import('@/views/user/Login.vue')
+        component: () => import('@/views/user/Login.vue'),
+        meta: { requiresGuest: true }
       },
       {
         path: 'register',
         name: 'Register',
-        component: () => import('@/views/user/Register.vue')
+        component: () => import('@/views/user/Register.vue'),
+        meta: { requiresGuest: true }
       },
       {
         path: 'profile',
@@ -76,6 +88,12 @@ const routes = [
         name: 'UserVIP',
         component: () => import('@/views/user/VIP.vue'),
         meta: { requiresAuth: true }
+      },
+      {
+        path: 'statistics',
+        name: 'UserStatistics',
+        component: () => import('@/views/user/Statistics.vue'),
+        meta: { requiresAuth: true }
       }
     ]
   },
@@ -91,13 +109,16 @@ const router = createRouter({
 // 路由守卫
 router.beforeEach((to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
-  const isLoggedIn = store.getters.isLoggedIn  // 直接使用 store
+  const requiresGuest = to.matched.some(record => record.meta.requiresGuest)
+  const isLoggedIn = store.getters['user/isLoggedIn']
 
   if (requiresAuth && !isLoggedIn) {
     next({
       path: '/user/login',
       query: { redirect: to.fullPath }
     })
+  } else if (requiresGuest && isLoggedIn) {
+    next('/')
   } else {
     next()
   }

@@ -30,10 +30,10 @@
               </ul>
               <p class="description">{{ movie.description }}</p>
               <div class="buttons">
-                <router-link :to="'/movie/' + movie.id" class="play-btn">
-                  <i class="el-icon-video-play"></i> 观看预告片
+                <router-link :to="{ name: 'MovieDetail', params: { id: movie.id }}" class="play-btn">
+                  <el-icon><VideoPlay /></el-icon> 观看预告片
                 </router-link>
-                <el-button class="add-btn" icon="el-icon-plus" circle></el-button>
+                <el-button class="add-btn" :icon="Plus" circle @click="handleAddToFavorites(movie)"></el-button>
               </div>
             </div>
           </div>
@@ -49,14 +49,8 @@
       </div>
       <div class="movie-list">
         <el-row :gutter="20">
-          <el-col :span="4" v-for="movie in hotMovies" :key="movie.id">
-            <el-card :body-style="{ padding: '0px' }" class="movie-card" @click="$router.push(`/movie/${movie.id}`)">
-              <img :src="movie.cover" class="movie-cover">
-              <div class="movie-info">
-                <h3>{{ movie.title }}</h3>
-                <p>{{ movie.score }} 分</p>
-              </div>
-            </el-card>
+          <el-col :xs="12" :sm="8" :md="6" :lg="4" v-for="movie in hotMovies" :key="movie.id">
+            <movie-card :movie="movie" />
           </el-col>
         </el-row>
       </div>
@@ -70,14 +64,8 @@
       </div>
       <div class="movie-list">
         <el-row :gutter="20">
-          <el-col :span="4" v-for="movie in newMovies" :key="movie.id">
-            <el-card :body-style="{ padding: '0px' }" class="movie-card" @click="$router.push(`/movie/${movie.id}`)">
-              <img :src="movie.cover" class="movie-cover">
-              <div class="movie-info">
-                <h3>{{ movie.title }}</h3>
-                <p>{{ movie.score }} 分</p>
-              </div>
-            </el-card>
+          <el-col :xs="12" :sm="8" :md="6" :lg="4" v-for="movie in newMovies" :key="movie.id">
+            <movie-card :movie="movie" />
           </el-col>
         </el-row>
       </div>
@@ -86,20 +74,54 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
+import { computed } from 'vue'
+import { useStore } from 'vuex'
+import { useRouter } from 'vue-router'
+import { VideoPlay, Plus } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import MovieCard from '@/components/movie/MovieCard.vue'
 
 export default {
   name: 'Home',
-  computed: {
-    ...mapGetters([
-      'hotMovies',
-      'newMovies'
-    ])
+  components: {
+    MovieCard
   },
-  created() {
+  setup() {
+    const store = useStore()
+    const router = useRouter()
+
+    const hotMovies = computed(() => store.getters.hotMovies)
+    const newMovies = computed(() => store.getters.newMovies)
+    const isLoggedIn = computed(() => store.getters.isLoggedIn)
+
+    const handleAddToFavorites = async (movie) => {
+      if (!isLoggedIn.value) {
+        router.push({
+          path: '/user/login',
+          query: { redirect: router.currentRoute.value.fullPath }
+        })
+        return
+      }
+
+      try {
+        await store.dispatch('addToFavorites', movie)
+        ElMessage.success('已添加到收藏')
+      } catch (error) {
+        ElMessage.error('添加收藏失败')
+      }
+    }
+
     // 获取电影数据
-    this.$store.dispatch('fetchHotMovies')
-    this.$store.dispatch('fetchNewMovies')
+    store.dispatch('fetchHotMovies')
+    store.dispatch('fetchNewMovies')
+
+    return {
+      hotMovies,
+      newMovies,
+      VideoPlay,
+      Plus,
+      handleAddToFavorites
+    }
   }
 }
 </script>

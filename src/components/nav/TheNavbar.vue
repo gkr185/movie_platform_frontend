@@ -13,12 +13,39 @@
           placeholder="搜索电影"
           prefix-icon="el-icon-search"
           @keyup.enter="handleSearch"
+          @focus="showSearchHistory = true"
           clearable
         >
           <template #append>
             <el-button @click="handleSearch">搜索</el-button>
           </template>
         </el-input>
+        
+        <!-- 搜索历史 -->
+        <div 
+          v-if="showSearchHistory && searchHistory.length" 
+          class="search-history"
+          v-click-outside="hideSearchHistory"
+        >
+          <div class="history-header">
+            <span>搜索历史</span>
+            <el-button 
+              type="text" 
+              @click="clearSearchHistory"
+            >清空</el-button>
+          </div>
+          <div class="history-list">
+            <div 
+              v-for="item in searchHistory" 
+              :key="item"
+              class="history-item"
+              @click="useHistoryItem(item)"
+            >
+              <el-icon><Timer /></el-icon>
+              <span>{{ item }}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="menu-nav">
@@ -46,27 +73,72 @@
 </template>
 
 <script>
+import { ref, computed } from 'vue'
+import { useStore } from 'vuex'
+import { useRouter } from 'vue-router'
+import { Timer, Menu } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+
 export default {
   name: 'TheNavbar',
+  components: {
+    Timer,
+    Menu
+  },
   props: {
     modelValue: {
       type: Boolean,
       default: false
     }
   },
-  data() {
-    return {
-      searchKeyword: ''
-    }
-  },
-  methods: {
-    handleSearch() {
-      if (this.searchKeyword.trim()) {
-        this.$router.push({
+  setup(props) {
+    const store = useStore()
+    const router = useRouter()
+    const searchKeyword = ref('')
+    const showSearchHistory = ref(false)
+    
+    const searchHistory = computed(() => {
+      return store.state.user.searchHistory || []
+    })
+    
+    const handleSearch = () => {
+      const keyword = searchKeyword.value.trim()
+      if (keyword) {
+        store.dispatch('user/addSearchHistory', keyword)
+        router.push({
           path: '/search',
-          query: { keyword: this.searchKeyword }
+          query: { keyword }
         })
+        showSearchHistory.value = false
       }
+    }
+    
+    const useHistoryItem = (keyword) => {
+      searchKeyword.value = keyword
+      handleSearch()
+    }
+    
+    const clearSearchHistory = async () => {
+      try {
+        await store.dispatch('user/clearSearchHistory')
+        ElMessage.success('搜索历史已清空')
+      } catch (error) {
+        ElMessage.error('清空搜索历史失败')
+      }
+    }
+    
+    const hideSearchHistory = () => {
+      showSearchHistory.value = false
+    }
+    
+    return {
+      searchKeyword,
+      showSearchHistory,
+      searchHistory,
+      handleSearch,
+      useHistoryItem,
+      clearSearchHistory,
+      hideSearchHistory
     }
   }
 }
@@ -231,6 +303,67 @@ export default {
   
   .logo-text {
     display: none;
+  }
+}
+
+.search-history {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 4px;
+  margin-top: 5px;
+  padding: 10px 0;
+  z-index: 100;
+  
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 15px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    
+    span {
+      color: #fff;
+      font-size: 14px;
+    }
+    
+    .el-button {
+      color: #909399;
+      font-size: 12px;
+      
+      &:hover {
+        color: #fff;
+      }
+    }
+  }
+  
+  .history-list {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 15px;
+    cursor: pointer;
+    color: #fff;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .el-icon {
+      font-size: 14px;
+      color: #909399;
+    }
+    
+    span {
+      font-size: 14px;
+    }
   }
 }
 </style> 

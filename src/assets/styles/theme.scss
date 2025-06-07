@@ -8,6 +8,27 @@
   --input-bg-color: #f5f7fa;
   --card-bg-color: #ffffff;
   --card-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+
+  // 电影详情页主题
+  --movie-detail-bg: #ffffff;
+  --movie-poster-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --movie-score-bg: var(--el-color-primary);
+  --movie-section-bg: var(--el-bg-color);
+  --movie-section-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+
+  // 评论组件主题
+  --comment-bg: #ffffff;
+  --comment-border: #e4e7ed;
+  --comment-hover-bg: #f5f7fa;
+  --comment-text: #333333;
+  --comment-text-light: #909399;
+  --comment-action: #909399;
+  --comment-action-hover: var(--el-color-primary);
+  --comment-action-active: var(--el-color-danger);
+  --comment-reply-bg: #f5f7fa;
+  --comment-editor-bg: #ffffff;
+  --comment-editor-border: #e4e7ed;
+  --comment-divider: #e4e7ed;
 }
 
 [data-theme='dark'] {
@@ -19,6 +40,27 @@
   --input-bg-color: #363636;
   --card-bg-color: #2a2a2a;
   --card-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+
+  // 电影详情页主题
+  --movie-detail-bg: #1a1a1a;
+  --movie-poster-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --movie-score-bg: var(--el-color-primary);
+  --movie-section-bg: #2a2a2a;
+  --movie-section-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+
+  // 评论组件主题
+  --comment-bg: #2a2a2a;
+  --comment-border: #363636;
+  --comment-hover-bg: #363636;
+  --comment-text: #ffffff;
+  --comment-text-light: rgba(255, 255, 255, 0.7);
+  --comment-action: #909399;
+  --comment-action-hover: var(--el-color-primary);
+  --comment-action-active: var(--el-color-danger);
+  --comment-reply-bg: #363636;
+  --comment-editor-bg: #2a2a2a;
+  --comment-editor-border: #363636;
+  --comment-divider: #363636;
 }
 
 body {

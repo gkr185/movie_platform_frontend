@@ -2,50 +2,81 @@
   <div class="user-center">
     <el-container>
       <!-- 侧边栏 -->
-      <el-aside :width="isCollapse ? '64px' : '200px'">
+      <el-aside :width="isCollapse ? '64px' : '240px'" class="user-aside">
         <div class="user-sidebar">
-          <div class="user-info">
-            <el-avatar :size="64" :src="userAvatar">
-              <el-icon><UserFilled /></el-icon>
-            </el-avatar>
-            <template v-if="!isCollapse">
-              <h3>{{ username }}</h3>
-              <p :class="{ 'vip-text': isVIP }">
-                {{ isVIP ? 'VIP会员' : '普通用户' }}
-                <el-tag v-if="isVIP" size="small" type="warning">
-                  {{ vipExpireDate ? `到期时间：${formatDate(vipExpireDate)}` : 'VIP' }}
-                </el-tag>
-              </p>
-            </template>
+          <!-- 用户信息区域 -->
+          <div class="user-info" :class="{ 'collapsed': isCollapse }">
+            <div class="avatar-wrapper">
+              <el-avatar :size="isCollapse ? 40 : 64" :src="userAvatar">
+                <el-icon><UserFilled /></el-icon>
+              </el-avatar>
+            </div>
+            <transition name="fade">
+              <div v-if="!isCollapse" class="user-details">
+                <h3>{{ username }}</h3>
+                <p v-if="isLoggedIn" :class="{ 'vip-text': isVIP }">
+                  {{ isVIP ? 'VIP会员' : '普通用户' }}
+                  <el-tag v-if="isVIP" size="small" type="warning">
+                    {{ vipExpireDate ? `到期时间：${formatDate(vipExpireDate)}` : 'VIP' }}
+                  </el-tag>
+                </p>
+              </div>
+            </transition>
           </div>
-          <el-menu
-            :default-active="activeMenu"
-            class="user-menu"
-            router
-            :collapse="isCollapse"
-            @select="handleSelect"
-          >
-            <el-menu-item index="/user/profile">
-              <el-icon><User /></el-icon>
-              <template #title>个人资料</template>
-            </el-menu-item>
-            <el-menu-item index="/user/vip">
-              <el-icon><Trophy /></el-icon>
-              <template #title>会员中心</template>
-            </el-menu-item>
-            <el-menu-item index="/user/favorites">
-              <el-icon><Star /></el-icon>
-              <template #title>我的收藏</template>
-            </el-menu-item>
-            <el-menu-item index="/user/history">
-              <el-icon><Timer /></el-icon>
-              <template #title>观看历史</template>
-            </el-menu-item>
-            <el-menu-item index="/user/statistics">
-              <el-icon><DataLine /></el-icon>
-              <template #title>数据统计</template>
-            </el-menu-item>
-          </el-menu>
+
+          <!-- 菜单区域 -->
+          <el-scrollbar>
+            <el-menu
+              :default-active="activeMenu"
+              class="user-menu"
+              router
+              :collapse="isCollapse"
+              :collapse-transition="false"
+              @select="handleSelect"
+            >
+              <!-- 未登录时显示的菜单项 -->
+              <template v-if="!isLoggedIn">
+                <el-menu-item index="/user/login">
+                  <el-icon><User /></el-icon>
+                  <template #title>登录</template>
+                </el-menu-item>
+                <el-menu-item index="/user/register">
+                  <el-icon><Plus /></el-icon>
+                  <template #title>注册</template>
+                </el-menu-item>
+              </template>
+
+              <!-- 已登录时显示的菜单项 -->
+              <template v-else>
+                <el-menu-item index="/user/profile">
+                  <el-icon><User /></el-icon>
+                  <template #title>个人资料</template>
+                </el-menu-item>
+                <el-menu-item index="/user/vip">
+                  <el-icon><Trophy /></el-icon>
+                  <template #title>会员中心</template>
+                </el-menu-item>
+                <el-menu-item index="/user/favorites">
+                  <el-icon><Star /></el-icon>
+                  <template #title>我的收藏</template>
+                </el-menu-item>
+                <el-menu-item index="/user/history">
+                  <el-icon><Timer /></el-icon>
+                  <template #title>观看历史</template>
+                </el-menu-item>
+                <el-menu-item index="/user/statistics">
+                  <el-icon><DataLine /></el-icon>
+                  <template #title>数据统计</template>
+                </el-menu-item>
+                <el-divider />
+                <el-menu-item @click="handleLogout">
+                  <el-icon><SwitchButton /></el-icon>
+                  <template #title>退出登录</template>
+                </el-menu-item>
+              </template>
+            </el-menu>
+          </el-scrollbar>
+
           <!-- 折叠按钮 -->
           <div class="collapse-btn" @click="toggleCollapse">
             <el-icon :size="20">
@@ -57,13 +88,15 @@
       </el-aside>
 
       <!-- 主内容区 -->
-      <el-main>
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
-      </el-main>
+      <el-container class="main-container">
+        <el-main>
+          <router-view v-slot="{ Component }">
+            <transition name="fade" mode="out-in">
+              <component :is="Component" />
+            </transition>
+          </router-view>
+        </el-main>
+      </el-container>
     </el-container>
   </div>
 </template>
@@ -71,40 +104,68 @@
 <script>
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { 
   User, UserFilled, Trophy, Star, Timer, 
-  DataLine, Fold, Expand 
+  DataLine, Fold, Expand, Plus, SwitchButton 
 } from '@element-plus/icons-vue'
+import { ElMessageBox, ElMessage } from 'element-plus'
 
 export default {
   name: 'UserCenter',
   components: {
     User, UserFilled, Trophy, Star, Timer, 
-    DataLine, Fold, Expand
+    DataLine, Fold, Expand, Plus, SwitchButton
   },
   setup() {
     const store = useStore()
     const route = useRoute()
+    const router = useRouter()
     const isCollapse = ref(false)
 
-    const username = computed(() => store.state.user?.name || '未登录')
-    const userAvatar = computed(() => store.state.user?.avatar || '')
-    const isVIP = computed(() => store.getters.isVIP)
-    const vipExpireDate = computed(() => store.getters.vipExpireDate)
+    const username = computed(() => store.state.user.name || '未登录')
+    const userAvatar = computed(() => store.state.user.avatar || '')
+    const isVIP = computed(() => store.getters['user/isVIP'])
+    const vipExpireDate = computed(() => store.getters['user/vipExpireDate'])
     const activeMenu = computed(() => route.path)
+    const isLoggedIn = computed(() => store.getters['user/isLoggedIn'])
 
     const toggleCollapse = () => {
       isCollapse.value = !isCollapse.value
     }
 
     const handleSelect = (index) => {
-      // 可以在这里添加菜单选择的处理逻辑
+      if (!isLoggedIn.value && index !== '/user/login' && index !== '/user/register') {
+        ElMessage.warning('请先登录')
+        router.push('/user/login')
+        return
+      }
     }
 
     const formatDate = (date) => {
       if (!date) return ''
       return new Date(date).toLocaleDateString()
+    }
+
+    const handleLogout = async () => {
+      try {
+        await ElMessageBox.confirm(
+          '确定要退出登录吗？',
+          '提示',
+          {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+        await store.dispatch('user/logout')
+        router.push('/')
+        ElMessage.success('已成功退出登录')
+      } catch (error) {
+        if (error !== 'cancel') {
+          ElMessage.error('退出登录失败，请重试')
+        }
+      }
     }
 
     return {
@@ -116,7 +177,9 @@ export default {
       isCollapse,
       toggleCollapse,
       handleSelect,
-      formatDate
+      formatDate,
+      isLoggedIn,
+      handleLogout
     }
   }
 }
@@ -130,110 +193,133 @@ export default {
   .el-container {
     height: 100%;
   }
+}
 
-  .el-aside {
-    background-color: var(--card-bg-color);
-    border-right: 1px solid var(--border-color);
-    transition: width 0.3s;
-    
-    .user-sidebar {
-      height: 100%;
-      position: relative;
+.user-aside {
+  transition: width 0.3s;
+  background-color: var(--card-bg-color);
+  border-right: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
 
-      .user-info {
-        padding: 20px;
-        text-align: center;
-        border-bottom: 1px solid var(--border-color);
-        transition: all 0.3s;
+.user-sidebar {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 
-        .el-avatar {
-          margin-bottom: 10px;
-          border: 2px solid var(--border-color);
-          transition: transform 0.3s;
+  .user-info {
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+    transition: all 0.3s;
 
-          &:hover {
-            transform: scale(1.05);
-          }
-        }
+    &.collapsed {
+      padding: 10px;
 
-        h3 {
-          margin: 10px 0 5px;
-          font-size: 16px;
-          color: var(--text-color);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        p {
-          margin: 0;
-          color: var(--text-color-light);
-          font-size: 14px;
-
-          &.vip-text {
-            color: #e6a23c;
-          }
-
-          .el-tag {
-            margin-left: 5px;
-          }
-        }
+      .avatar-wrapper {
+        margin-bottom: 0;
       }
+    }
 
-      .user-menu {
-        border-right: none;
-        background-color: transparent;
+    .avatar-wrapper {
+      margin-bottom: 10px;
+      transition: all 0.3s;
 
-        .el-menu-item {
-          height: 50px;
-          line-height: 50px;
-          color: var(--text-color);
-
-          .el-icon {
-            font-size: 18px;
-            color: var(--text-color);
-          }
-
-          &:hover, &.is-active {
-            background-color: var(--input-bg-color);
-            color: var(--el-color-primary);
-
-            .el-icon {
-              color: var(--el-color-primary);
-            }
-          }
-        }
-      }
-
-      .collapse-btn {
-        position: absolute;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        cursor: pointer;
-        padding: 8px;
-        border-radius: 50%;
-        background-color: var(--input-bg-color);
+      .el-avatar {
+        border: 2px solid var(--border-color);
         transition: all 0.3s;
 
         &:hover {
-          background-color: var(--el-color-primary-light-9);
-          color: var(--el-color-primary);
+          transform: scale(1.05);
+        }
+      }
+    }
+
+    .user-details {
+      h3 {
+        margin: 10px 0 5px;
+        font-size: 16px;
+        color: var(--text-color);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      p {
+        margin: 0;
+        color: var(--text-color-light);
+        font-size: 14px;
+
+        &.vip-text {
+          color: #e6a23c;
+        }
+
+        .el-tag {
+          margin-left: 5px;
         }
       }
     }
   }
+}
 
-  .el-main {
-    padding: 20px;
-    background-color: var(--bg-color);
-    margin: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+.user-menu {
+  flex: 1;
+  border-right: none;
+  background-color: transparent;
+
+  :deep(.el-menu-item) {
+    height: 50px;
+    line-height: 50px;
+    color: var(--text-color);
+
+    .el-icon {
+      font-size: 18px;
+      color: var(--text-color);
+    }
+
+    &:hover, &.is-active {
+      background-color: var(--input-bg-color);
+      color: var(--el-color-primary);
+
+      .el-icon {
+        color: var(--el-color-primary);
+      }
+    }
   }
 }
 
-// 路由过渡动画
+.collapse-btn {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  background-color: var(--input-bg-color);
+  transition: all 0.3s;
+
+  &:hover {
+    background-color: var(--el-color-primary-light-9);
+    color: var(--el-color-primary);
+  }
+}
+
+.main-container {
+  background-color: var(--bg-color);
+  
+  .el-main {
+    padding: 20px;
+    overflow-x: hidden;
+  }
+}
+
+// 动画
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -242,20 +328,5 @@ export default {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-// 响应式设计
-@media screen and (max-width: 768px) {
-  .user-center {
-    .el-aside {
-      position: fixed;
-      z-index: 1000;
-      height: 100vh;
-    }
-
-    .el-main {
-      margin-left: 64px;
-    }
-  }
 }
 </style> 
