@@ -32,39 +32,23 @@
 </template>
 
 <script>
+import { mapGetters, mapActions } from 'vuex'
+
 export default {
   name: 'AdCarousel',
   data() {
     return {
-      currentIndex: 0,
-      advertisements: [
-        {
-          title: '新年特惠',
-          description: '开通会员享受8折优惠',
-          image: '/ads/new-year.jpg',
-          tag: '限时',
-          showInfo: true,
-          link: '/vip'
-        },
-        {
-          title: '新片推荐',
-          description: '最新好莱坞大片',
-          image: '/ads/new-movie.jpg',
-          showInfo: true,
-          link: '/movie/123'
-        },
-        {
-          title: '活动专区',
-          description: '参与互动赢取好礼',
-          image: '/ads/activity.jpg',
-          tag: '活动',
-          showInfo: true,
-          link: '/activity'
-        }
-      ]
+      currentIndex: 0
     }
   },
+  computed: {
+    ...mapGetters(['advertisements'])
+  },
+  created() {
+    this.fetchAdvertisements()
+  },
   methods: {
+    ...mapActions(['fetchAdvertisements']),
     handleChange(index) {
       this.currentIndex = index
     },

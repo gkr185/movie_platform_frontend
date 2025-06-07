@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '@/views/Home.vue'
+import store from '@/store'  // 直接导入 store
 
 const routes = [
   {
@@ -43,63 +44,60 @@ const routes = [
     component: () => import('@/views/user/Index.vue'),
     children: [
       {
-        path: '',
-        name: 'UserCenter',
-        component: () => import('@/views/user/Profile.vue')
+        path: 'login',
+        name: 'Login',
+        component: () => import('@/views/user/Login.vue')
+      },
+      {
+        path: 'register',
+        name: 'Register',
+        component: () => import('@/views/user/Register.vue')
       },
       {
         path: 'profile',
         name: 'UserProfile',
-        component: () => import('@/views/user/Profile.vue')
-      },
-      {
-        path: 'vip',
-        name: 'UserVIP',
-        component: () => import('@/views/user/VIP.vue')
-      },
-      {
-        path: 'favorites',
-        name: 'UserFavorites',
-        component: () => import('@/views/user/Favorites.vue')
+        component: () => import('@/views/user/Profile.vue'),
+        meta: { requiresAuth: true }
       },
       {
         path: 'history',
         name: 'UserHistory',
-        component: () => import('@/views/user/History.vue')
+        component: () => import('@/views/user/History.vue'),
+        meta: { requiresAuth: true }
       },
       {
-        path: 'statistics',
-        name: 'UserStatistics',
-        component: () => import('@/views/statistics/Index.vue')
+        path: 'favorites',
+        name: 'UserFavorites',
+        component: () => import('@/views/user/Favorites.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'vip',
+        name: 'UserVIP',
+        component: () => import('@/views/user/VIP.vue'),
+        meta: { requiresAuth: true }
       }
     ]
   },
-  {
-    path: '/login',
-    name: 'Login',
-    component: () => import('@/views/user/Login.vue')
-  },
-  {
-    path: '/register',
-    name: 'Register',
-    component: () => import('@/views/user/Register.vue')
-  }
+  
+
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(process.env.BASE_URL),
   routes
 })
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
-  // 需要登录的路由
-  const requiresAuth = to.path.startsWith('/user')
-  // 临时设置为true，实际项目中应该从vuex获取
-  const isLoggedIn = true
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+  const isLoggedIn = store.getters.isLoggedIn  // 直接使用 store
 
   if (requiresAuth && !isLoggedIn) {
-    next('/login')
+    next({
+      path: '/user/login',
+      query: { redirect: to.fullPath }
+    })
   } else {
     next()
   }

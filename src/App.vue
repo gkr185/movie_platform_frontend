@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="app" :data-theme="currentTheme">
     <nav-bar></nav-bar>
     <div class="main-container">
       <router-view></router-view>
@@ -9,11 +9,15 @@
 
 <script>
 import NavBar from '@/components/NavBar.vue'
+import { mapGetters } from 'vuex'
 
 export default {
   name: 'App',
   components: {
     NavBar
+  },
+  computed: {
+    ...mapGetters(['currentTheme'])
   }
 }
 </script>
@@ -35,12 +39,34 @@ html, body {
 
 #app {
   min-height: 100vh;
-  background-color: #f5f6f7;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.3s, color 0.3s;
   
   .main-container {
     padding-top: 60px; // 导航栏的高度
     min-height: calc(100vh - 60px); // 减去导航栏高度
   }
+}
+
+:root {
+  // 浅色主题变量
+  --bg-color: #f5f5f5;
+  --text-color: #333333;
+  --text-color-light: #666666;
+  --card-bg-color: #ffffff;
+  --border-color: #e4e7ed;
+  --input-bg-color: #f5f5f5;
+}
+
+// 深色主题变量
+[data-theme='dark'] {
+  --bg-color: #1a1a1a;
+  --text-color: #ffffff;
+  --text-color-light: #999999;
+  --card-bg-color: #2a2a2a;
+  --border-color: #4a4a4a;
+  --input-bg-color: #333333;
 }
 
 // 全局滚动条样式
@@ -50,15 +76,15 @@ html, body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--input-bg-color);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: var(--border-color);
   border-radius: 4px;
   &:hover {
-    background: #a8a8a8;
+    background: var(--text-color-light);
   }
 }
 
@@ -76,12 +102,129 @@ html, body {
 .el-menu--horizontal > .el-menu-item {
   height: 60px !important;
   line-height: 60px !important;
+  color: var(--text-color) !important;
+
+  &:hover {
+    color: rgb(255, 115, 0) !important;
+  }
+
+  &.is-active {
+    color: rgb(255, 115, 0) !important;
+    border-bottom-color: rgb(255, 115, 0) !important;
+  }
 }
 
 .el-dropdown-link {
   cursor: pointer;
-  color: #409EFF;
+  color: var(--text-color);
   display: flex;
   align-items: center;
+
+  &:hover {
+    color: rgb(255, 115, 0);
+  }
+}
+
+// 卡片样式适配主题
+.el-card {
+  background-color: var(--card-bg-color) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-color) !important;
+
+  .el-card__header {
+    border-bottom-color: var(--border-color) !important;
+  }
+}
+
+// 按钮样式适配主题
+.el-button--text {
+  color: var(--text-color) !important;
+
+  &:hover {
+    color: rgb(255, 115, 0) !important;
+  }
+}
+
+// 输入框样式适配主题
+.el-input__inner {
+  background-color: var(--input-bg-color) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-color) !important;
+
+  &::placeholder {
+    color: var(--text-color-light) !important;
+  }
+}
+
+// 下拉菜单样式适配主题
+.el-dropdown-menu {
+  background-color: var(--card-bg-color) !important;
+  border-color: var(--border-color) !important;
+
+  .el-dropdown-menu__item {
+    color: var(--text-color) !important;
+
+    &:hover {
+      background-color: var(--input-bg-color) !important;
+      color: rgb(255, 115, 0) !important;
+    }
+  }
+}
+
+// 弹窗样式适配主题
+.el-dialog {
+  background-color: var(--card-bg-color) !important;
+  
+  .el-dialog__title {
+    color: var(--text-color) !important;
+  }
+  
+  .el-dialog__body {
+    color: var(--text-color) !important;
+  }
+}
+
+// 表格样式适配主题
+.el-table {
+  background-color: var(--card-bg-color) !important;
+  color: var(--text-color) !important;
+  
+  tr {
+    background-color: var(--card-bg-color) !important;
+  }
+  
+  th.el-table__cell {
+    background-color: var(--input-bg-color) !important;
+    color: var(--text-color) !important;
+    border-bottom-color: var(--border-color) !important;
+  }
+  
+  td.el-table__cell {
+    border-bottom-color: var(--border-color) !important;
+  }
+}
+
+// 分页样式适配主题
+.el-pagination {
+  color: var(--text-color) !important;
+  
+  .el-pagination__total,
+  .el-pagination__jump {
+    color: var(--text-color) !important;
+  }
+  
+  .el-input__inner {
+    background-color: var(--input-bg-color) !important;
+    color: var(--text-color) !important;
+  }
+  
+  button {
+    background-color: var(--card-bg-color) !important;
+    color: var(--text-color) !important;
+    
+    &:disabled {
+      color: var(--text-color-light) !important;
+    }
+  }
 }
 </style>

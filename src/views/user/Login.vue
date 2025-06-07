@@ -182,8 +182,8 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #f5f7fa;
-  background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background-color: var(--bg-color);
+  background-image: linear-gradient(135deg, var(--bg-color) 0%, var(--card-bg-color) 100%);
 }
 
 .login-card {
@@ -191,6 +191,8 @@ export default {
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+  background-color: var(--card-bg-color);
+  border-color: var(--border-color);
 }
 
 .login-header {
@@ -198,30 +200,28 @@ export default {
   margin-bottom: 30px;
 
   h2 {
+    color: var(--text-color);
     margin: 0;
-    color: #303133;
-    font-size: 24px;
   }
 }
 
 .login-button {
   width: 100%;
-  margin-top: 10px;
 }
 
 .login-options {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 15px;
-}
+  margin-top: -10px;
 
-.register-link {
-  color: #409EFF;
-  text-decoration: none;
+  .register-link {
+    color: var(--text-color-light);
+    text-decoration: none;
 
-  &:hover {
-    color: #66b1ff;
+    &:hover {
+      color: #409EFF;
+    }
   }
 }
 
@@ -232,52 +232,49 @@ export default {
     display: flex;
     align-items: center;
     margin: 20px 0;
-    color: #999;
-    font-size: 14px;
+    color: var(--text-color-light);
 
     &::before,
     &::after {
       content: '';
       flex: 1;
       height: 1px;
-      background: #dcdfe6;
+      background-color: var(--border-color);
     }
 
     span {
-      padding: 0 15px;
+      padding: 0 10px;
+      font-size: 14px;
     }
   }
 
   .login-methods {
     display: flex;
     justify-content: space-around;
-    padding: 10px 0;
 
     .el-button {
-      font-size: 14px;
+      color: var(--text-color-light);
 
-      [class^="el-icon-"] {
-        font-size: 18px;
-        vertical-align: middle;
-        margin-right: 4px;
+      &:hover {
+        color: #409EFF;
       }
     }
   }
 }
 
 .quick-nav {
-  padding: 20px 0;
-
   .nav-item {
     text-align: center;
+    padding: 20px 0;
     cursor: pointer;
-    padding: 15px;
-    border-radius: 8px;
+    border-radius: 4px;
     transition: all 0.3s;
+    background-color: var(--input-bg-color);
+    color: var(--text-color);
 
     &:hover {
-      background-color: #f5f7fa;
-      color: #409EFF;
+      background-color: #409EFF;
+      color: #fff;
     }
 
     i {

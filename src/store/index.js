@@ -1,50 +1,46 @@
 import { createStore } from 'vuex'
-
-// 模拟数据
-const mockMovies = {
-  hot: [
-    
-    { id: 1, title: '流浪地球2', score: 8.6, cover: require('@/assets/wdzsj.jpg') },
-    { id: 2, title: '满江红', score: 8.2, cover: 'https://img.movie.com/full-river-red.jpg' },
-    { id: 3, title: '无名', score: 7.8, cover: 'https://img.movie.com/anonymous.jpg' },
-    { id: 4, title: '中国乒乓', score: 8.1, cover: 'https://img.movie.com/ping-pong.jpg' },
-    { id: 5, title: '保你平安', score: 7.9, cover: 'https://img.movie.com/safe-with-me.jpg' },
-    { id: 6, title: '交换人生', score: 8.0, cover: 'https://img.movie.com/life-swap.jpg' }
-  ],
-  new: [
-    { id: 7, title: '铃芽之旅', score: 8.3, cover: 'https://img.movie.com/suzume.jpg' },
-    { id: 8, title: '蚁人与黄蜂女', score: 7.5, cover: 'https://img.movie.com/ant-man.jpg' },
-    { id: 9, title: '阿凡达2', score: 8.7, cover: 'https://img.movie.com/avatar-2.jpg' },
-    { id: 10, title: '泰坦尼克号重映', score: 9.5, cover: 'https://img.movie.com/titanic.jpg' },
-    { id: 11, title: '深海', score: 8.2, cover: 'https://img.movie.com/deep-sea.jpg' },
-    { id: 12, title: '熊出没·伴我熊芯', score: 7.8, cover: 'https://img.movie.com/boonie-bears.jpg' }
-  ],
-  recommended: [
-    { id: 13, title: '肖申克的救赎', score: 9.7, cover: 'https://img.movie.com/shawshank.jpg' },
-    { id: 14, title: '霸王别姬', score: 9.6, cover: 'https://img.movie.com/farewell.jpg' },
-    { id: 15, title: '阿甘正传', score: 9.5, cover: 'https://img.movie.com/forrest-gump.jpg' },
-    { id: 16, title: '泰坦尼克号', score: 9.4, cover: 'https://img.movie.com/titanic-old.jpg' },
-    { id: 17, title: '这个杀手不太冷', score: 9.4, cover: 'https://img.movie.com/leon.jpg' },
-    { id: 18, title: '千与千寻', score: 9.4, cover: 'https://img.movie.com/spirited-away.jpg' }
-  ]
-}
+import { mockMovies, mockAds, mockRankings, mockUsers, mockVIPPlans } from './data'
 
 export default createStore({
   state: {
-    user: null,
+    user: JSON.parse(localStorage.getItem('user')) || null,
     token: localStorage.getItem('token') || '',
     movies: {
       hot: [],
       new: [],
       recommended: []
-    }
+    },
+    theme: localStorage.getItem('theme') || 'light',
+    navMenu: {
+      isOpen: false
+    },
+    advertisements: [],
+    rankings: {
+      hot: [],
+      score: []
+    },
+    userSettings: null,
+    watchHistory: [],
+    favorites: [],
+    vipPlans: []
   },
   getters: {
     isLoggedIn: state => !!state.token,
     currentUser: state => state.user,
     hotMovies: state => state.movies.hot,
     newMovies: state => state.movies.new,
-    recommendedMovies: state => state.movies.recommended
+    recommendedMovies: state => state.movies.recommended,
+    currentTheme: state => state.theme,
+    isMenuOpen: state => state.navMenu.isOpen,
+    advertisements: state => state.advertisements,
+    hotRankings: state => state.rankings.hot,
+    scoreRankings: state => state.rankings.score,
+    userSettings: state => state.userSettings,
+    watchHistory: state => state.watchHistory,
+    favorites: state => state.favorites,
+    vipPlans: state => state.vipPlans,
+    isVIP: state => state.user?.vip || false,
+    vipExpireDate: state => state.user?.vipExpireDate
   },
   mutations: {
     SET_TOKEN(state, token) {
@@ -53,6 +49,17 @@ export default createStore({
     },
     SET_USER(state, user) {
       state.user = user
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user))
+        state.userSettings = user.settings
+        state.watchHistory = user.watchHistory
+        state.favorites = user.favorites
+      } else {
+        localStorage.removeItem('user')
+        state.userSettings = null
+        state.watchHistory = []
+        state.favorites = []
+      }
     },
     SET_HOT_MOVIES(state, movies) {
       state.movies.hot = movies
@@ -66,19 +73,72 @@ export default createStore({
     LOGOUT(state) {
       state.token = ''
       state.user = null
+      state.userSettings = null
+      state.watchHistory = []
+      state.favorites = []
       localStorage.removeItem('token')
+    },
+    TOGGLE_THEME(state) {
+      state.theme = state.theme === 'light' ? 'dark' : 'light'
+      if (state.userSettings) {
+        state.userSettings.theme = state.theme
+      }
+      localStorage.setItem('theme', state.theme)
+      document.documentElement.setAttribute('data-theme', state.theme)
+    },
+    TOGGLE_MENU(state) {
+      state.navMenu.isOpen = !state.navMenu.isOpen
+    },
+    SET_MENU_STATE(state, isOpen) {
+      state.navMenu.isOpen = isOpen
+    },
+    SET_ADVERTISEMENTS(state, ads) {
+      state.advertisements = ads
+    },
+    SET_HOT_RANKINGS(state, rankings) {
+      state.rankings.hot = rankings
+    },
+    SET_SCORE_RANKINGS(state, rankings) {
+      state.rankings.score = rankings
+    },
+    UPDATE_USER_SETTINGS(state, settings) {
+      state.userSettings = { ...state.userSettings, ...settings }
+      if (state.user) {
+        state.user.settings = state.userSettings
+      }
+    },
+    ADD_TO_HISTORY(state, movie) {
+      const index = state.watchHistory.findIndex(item => item.id === movie.id)
+      if (index > -1) {
+        state.watchHistory.splice(index, 1)
+      }
+      state.watchHistory.unshift(movie)
+    },
+    REMOVE_FROM_HISTORY(state, movieId) {
+      state.watchHistory = state.watchHistory.filter(item => item.id !== movieId)
+    },
+    CLEAR_HISTORY(state) {
+      state.watchHistory = []
+    },
+    ADD_TO_FAVORITES(state, movie) {
+      if (!state.favorites.find(item => item.id === movie.id)) {
+        state.favorites.unshift({
+          ...movie,
+          addTime: new Date().toISOString()
+        })
+      }
+    },
+    REMOVE_FROM_FAVORITES(state, movieId) {
+      state.favorites = state.favorites.filter(item => item.id !== movieId)
+    },
+    SET_VIP_PLANS(state, plans) {
+      state.vipPlans = plans
     }
   },
   actions: {
     async login({ commit }, credentials) {
       try {
-        // 模拟登录API调用
-        const mockUser = {
-          id: 1,
-          name: '测试用户',
-          avatar: 'https://img.movie.com/avatar.jpg',
-          email: 'test@example.com'
-        }
+        const mockUser = mockUsers.test
         const response = { 
           data: { 
             token: 'mock-jwt-token',
@@ -94,7 +154,6 @@ export default createStore({
     },
     async fetchHotMovies({ commit }) {
       try {
-        // 模拟API调用延迟
         await new Promise(resolve => setTimeout(resolve, 500))
         commit('SET_HOT_MOVIES', mockMovies.hot)
       } catch (error) {
@@ -103,7 +162,6 @@ export default createStore({
     },
     async fetchNewMovies({ commit }) {
       try {
-        // 模拟API调用延迟
         await new Promise(resolve => setTimeout(resolve, 500))
         commit('SET_NEW_MOVIES', mockMovies.new)
       } catch (error) {
@@ -112,11 +170,90 @@ export default createStore({
     },
     async fetchRecommendedMovies({ commit }) {
       try {
-        // 模拟API调用延迟
         await new Promise(resolve => setTimeout(resolve, 500))
         commit('SET_RECOMMENDED_MOVIES', mockMovies.recommended)
       } catch (error) {
         console.error('获取推荐电影失败:', error)
+      }
+    },
+    async fetchAdvertisements({ commit }) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 500))
+        commit('SET_ADVERTISEMENTS', mockAds)
+      } catch (error) {
+        console.error('获取广告数据失败:', error)
+      }
+    },
+    async fetchRankings({ commit }) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 500))
+        commit('SET_HOT_RANKINGS', mockRankings.hot)
+        commit('SET_SCORE_RANKINGS', mockRankings.score)
+      } catch (error) {
+        console.error('获取排行榜数据失败:', error)
+      }
+    },
+    async updateUserSettings({ commit }, settings) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300))
+        commit('UPDATE_USER_SETTINGS', settings)
+      } catch (error) {
+        console.error('更新用户设置失败:', error)
+        throw error
+      }
+    },
+    async addToHistory({ commit }, movie) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300))
+        commit('ADD_TO_HISTORY', movie)
+      } catch (error) {
+        console.error('添加观看历史失败:', error)
+        throw error
+      }
+    },
+    async removeFromHistory({ commit }, movieId) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300))
+        commit('REMOVE_FROM_HISTORY', movieId)
+      } catch (error) {
+        console.error('删除观看历史失败:', error)
+        throw error
+      }
+    },
+    async clearHistory({ commit }) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300))
+        commit('CLEAR_HISTORY')
+      } catch (error) {
+        console.error('清空观看历史失败:', error)
+        throw error
+      }
+    },
+    async addToFavorites({ commit }, movie) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300))
+        commit('ADD_TO_FAVORITES', movie)
+      } catch (error) {
+        console.error('添加收藏失败:', error)
+        throw error
+      }
+    },
+    async removeFromFavorites({ commit }, movieId) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300))
+        commit('REMOVE_FROM_FAVORITES', movieId)
+      } catch (error) {
+        console.error('取消收藏失败:', error)
+        throw error
+      }
+    },
+    async fetchVIPPlans({ commit }) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 500))
+        commit('SET_VIP_PLANS', mockVIPPlans)
+      } catch (error) {
+        console.error('获取VIP套餐失败:', error)
+        throw error
       }
     }
   },

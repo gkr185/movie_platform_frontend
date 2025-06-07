@@ -1,177 +1,231 @@
 <template>
-  <div class="favorites">
-    <h2>我的收藏</h2>
-    
-    <!-- 筛选工具栏 -->
-    <div class="toolbar">
-      <el-radio-group v-model="filterType" size="small">
-        <el-radio-button label="all">全部</el-radio-button>
-        <el-radio-button label="movie">电影</el-radio-button>
-        <el-radio-button label="tv">电视剧</el-radio-button>
-        <el-radio-button label="anime">动漫</el-radio-button>
-      </el-radio-group>
-      
-      <el-input
-        placeholder="搜索收藏内容"
-        v-model="searchKeyword"
-        prefix-icon="el-icon-search"
-        class="search-input"
-      >
-      </el-input>
-    </div>
-
-    <!-- 收藏列表 -->
-    <div class="favorites-list">
-      <el-row :gutter="20">
-        <el-col :span="6" v-for="item in favoriteItems" :key="item.id">
-          <el-card :body-style="{ padding: '0px' }" class="favorite-card">
-            <div class="card-cover">
-              <img :src="item.cover">
-              <div class="card-actions">
-                <el-button type="text" icon="el-icon-video-play">观看</el-button>
-                <el-button type="text" icon="el-icon-star-off">取消收藏</el-button>
-              </div>
-            </div>
-            <div class="card-info">
-              <h3>{{ item.title }}</h3>
-              <p class="type">{{ item.type }}</p>
-              <p class="date">收藏于 {{ item.date }}</p>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-
-      <!-- 分页 -->
-      <div class="pagination">
-        <el-pagination
-          background
-          layout="prev, pager, next"
-          :total="100"
-          :page-size="12"
-        >
-        </el-pagination>
+  <div class="favorites-container">
+    <template v-if="isLoggedIn">
+      <div class="favorites-header">
+        <h2>我的收藏</h2>
+        <div class="header-actions">
+          <el-input
+            v-model="searchQuery"
+            placeholder="搜索收藏的影片"
+            prefix-icon="Search"
+            clearable
+            class="search-input"
+          />
+        </div>
       </div>
-    </div>
+
+      <el-empty v-if="!filteredFavorites.length" :description="searchQuery ? '未找到匹配的影片' : '暂无收藏'" />
+
+      <div v-else class="favorites-grid">
+        <el-card v-for="movie in filteredFavorites" :key="movie.id" class="movie-card">
+          <div class="movie-poster">
+            <el-image :src="movie.cover" fit="cover" />
+            <div class="movie-actions">
+              <el-button type="primary" @click="handleWatch(movie)">
+                观看
+              </el-button>
+              <el-button type="danger" @click="handleRemoveFavorite(movie.id)">
+                取消收藏
+              </el-button>
+            </div>
+          </div>
+          <div class="movie-info">
+            <h3>{{ movie.title }}</h3>
+            <div class="movie-meta">
+              <el-rate
+                v-model="movie.score"
+                :max="10"
+                :allow-half="true"
+                disabled
+                text-color="#ff9900"
+              >
+                <template #suffix>{{ movie.score }}分</template>
+              </el-rate>
+              <p class="add-time">收藏于 {{ formatDate(movie.addTime) }}</p>
+            </div>
+          </div>
+        </el-card>
+      </div>
+    </template>
+    <el-empty v-else description="请先登录" />
   </div>
 </template>
 
 <script>
+import { computed, ref } from 'vue'
+import { useStore } from 'vuex'
+import { useRouter } from 'vue-router'
+import { ElMessageBox, ElMessage } from 'element-plus'
+
 export default {
   name: 'UserFavorites',
-  data() {
-    return {
-      filterType: 'all',
-      searchKeyword: '',
-      favoriteItems: [
-        {
-          id: 1,
-          title: '肖申克的救赎',
-          type: '电影',
-          cover: '@/assets/movie1.jpg',
-          date: '2024-01-15'
-        },
-        {
-          id: 2,
-          title: '霸王别姬',
-          type: '电影',
-          cover: '@/assets/movie2.jpg',
-          date: '2024-01-14'
+  setup() {
+    const store = useStore()
+    const router = useRouter()
+    const searchQuery = ref('')
+    
+    const isLoggedIn = computed(() => store.getters.isLoggedIn)
+    const favorites = computed(() => store.getters.favorites)
+    const filteredFavorites = computed(() => {
+      if (!searchQuery.value) return favorites.value
+      const query = searchQuery.value.toLowerCase()
+      return favorites.value.filter(movie => 
+        movie.title.toLowerCase().includes(query)
+      )
+    })
+
+    const formatDate = (dateString) => {
+      const date = new Date(dateString)
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+    }
+
+    const handleWatch = (movie) => {
+      router.push({
+        name: 'MovieDetail',
+        params: { id: movie.id }
+      })
+    }
+
+    const handleRemoveFavorite = async (movieId) => {
+      try {
+        await ElMessageBox.confirm(
+          '确定要取消收藏这部影片吗？',
+          '提示',
+          {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+        await store.dispatch('removeFromFavorites', movieId)
+        ElMessage.success('已取消收藏')
+      } catch (error) {
+        if (error !== 'cancel') {
+          ElMessage.error('操作失败')
         }
-        // 更多收藏项...
-      ]
+      }
+    }
+
+    return {
+      searchQuery,
+      filteredFavorites,
+      formatDate,
+      handleWatch,
+      handleRemoveFavorite,
+      isLoggedIn
     }
   }
 }
 </script>
 
-<style lang="scss" scoped>
-.favorites {
-  h2 {
-    margin-bottom: 20px;
+<style scoped>
+.favorites-container {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 0 20px;
+}
+
+.favorites-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.favorites-header h2 {
+  margin: 0;
+  color: var(--el-text-color-primary);
+}
+
+.search-input {
+  width: 300px;
+}
+
+.favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.movie-card {
+  transition: transform 0.3s ease;
+}
+
+.movie-card:hover {
+  transform: translateY(-5px);
+}
+
+.movie-poster {
+  position: relative;
+  aspect-ratio: 2/3;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.movie-poster .el-image {
+  width: 100%;
+  height: 100%;
+}
+
+.movie-actions {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 15px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  display: flex;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.movie-poster:hover .movie-actions {
+  opacity: 1;
+}
+
+.movie-info {
+  padding: 15px 0;
+}
+
+.movie-info h3 {
+  margin: 0 0 10px 0;
+  color: var(--el-text-color-primary);
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.movie-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.add-time {
+  margin: 0;
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .favorites-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
   }
 
-  .toolbar {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 20px;
-
-    .search-input {
-      width: 200px;
-    }
+  .search-input {
+    width: 100%;
   }
 
-  .favorites-list {
-    .favorite-card {
-      margin-bottom: 20px;
-      transition: all 0.3s;
-
-      &:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-
-        .card-actions {
-          opacity: 1;
-        }
-      }
-    }
-
-    .card-cover {
-      position: relative;
-      height: 200px;
-
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-
-      .card-actions {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        padding: 10px;
-        background: linear-gradient(transparent, rgba(0,0,0,0.7));
-        opacity: 0;
-        transition: opacity 0.3s;
-        display: flex;
-        justify-content: space-around;
-
-        .el-button {
-          color: #fff;
-          &:hover {
-            color: #409EFF;
-          }
-        }
-      }
-    }
-
-    .card-info {
-      padding: 10px;
-
-      h3 {
-        margin: 0 0 5px;
-        font-size: 14px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      p {
-        margin: 0;
-        font-size: 12px;
-        color: #666;
-
-        &.date {
-          color: #999;
-        }
-      }
-    }
-  }
-
-  .pagination {
-    margin-top: 30px;
-    text-align: center;
+  .favorites-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
 }
 </style> 

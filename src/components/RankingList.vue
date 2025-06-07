@@ -1,6 +1,6 @@
 <template>
   <div class="ranking-list">
-    <div v-for="(item, index) in list" :key="item.id" class="ranking-item">
+    <div v-for="(item, index) in rankingList" :key="item.id" class="ranking-item">
       <div class="rank-number" :class="{ 'top3': index < 3 }">
         {{ item.rank }}
       </div>
@@ -55,19 +55,27 @@
 </template>
 
 <script>
+import { mapGetters, mapActions } from 'vuex'
+
 export default {
   name: 'RankingList',
   props: {
-    list: {
-      type: Array,
-      required: true
-    },
     type: {
       type: String,
       default: 'hot'
     }
   },
+  computed: {
+    ...mapGetters(['hotRankings', 'scoreRankings']),
+    rankingList() {
+      return this.type === 'hot' ? this.hotRankings : this.scoreRankings
+    }
+  },
+  created() {
+    this.fetchRankings()
+  },
   methods: {
+    ...mapActions(['fetchRankings']),
     playMovie(id) {
       this.$router.push(`/movie/${id}`)
     },

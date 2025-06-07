@@ -1,224 +1,365 @@
 <template>
-  <div class="vip-center">
-    <h2>会员中心</h2>
-    
-    <!-- 当前会员状态 -->
-    <el-card class="vip-status">
-      <div class="status-header">
-        <div class="user-info">
-          <el-avatar :size="60" icon="el-icon-user"></el-avatar>
-          <div class="info">
-            <h3>{{ username }}</h3>
-            <div class="vip-badge" :class="{ active: isVip }">
-              <i class="el-icon-trophy"></i>
-              {{ isVip ? 'VIP会员' : '普通用户' }}
-            </div>
-          </div>
-        </div>
-        <div class="vip-benefits">
-          <ul>
-            <li><i class="el-icon-video-play"></i> 1080P高清视频</li>
-            <li><i class="el-icon-download"></i> 支持下载</li>
-            <li><i class="el-icon-close"></i> 无广告打扰</li>
-          </ul>
+  <div class="vip-container">
+    <template v-if="isLoggedIn">
+      <div class="vip-header">
+        <h2>VIP会员</h2>
+        <div class="vip-status" v-if="isVIP">
+          <el-tag type="warning" size="large">VIP会员</el-tag>
+          <span class="expire-date">到期时间：{{ vipExpireDate }}</span>
         </div>
       </div>
-    </el-card>
 
-    <!-- 会员套餐 -->
-    <div class="vip-plans">
-      <h3>开通会员</h3>
-      <el-row :gutter="20">
-        <el-col :span="8" v-for="(plan, index) in vipPlans" :key="index">
-          <el-card class="plan-card" :class="{ 'recommended': plan.recommended }">
-            <div class="plan-header">
-              <h4>{{ plan.name }}</h4>
-              <div class="price">
-                <span class="currency">¥</span>
-                <span class="amount">{{ plan.price }}</span>
-                <span class="period">/{{ plan.period }}</span>
+      <div class="vip-benefits">
+        <h3>会员特权</h3>
+        <div class="benefits-grid">
+          <div class="benefit-item">
+            <el-icon><VideoPlay /></el-icon>
+            <h4>4K超清画质</h4>
+            <p>享受极致观影体验</p>
+          </div>
+          <div class="benefit-item">
+            <el-icon><MuteNotification /></el-icon>
+            <h4>无广告打扰</h4>
+            <p>沉浸式观影体验</p>
+          </div>
+          <div class="benefit-item">
+            <el-icon><Download /></el-icon>
+            <h4>离线缓存</h4>
+            <p>随时随地观看</p>
+          </div>
+          <div class="benefit-item">
+            <el-icon><Service /></el-icon>
+            <h4>专属客服</h4>
+            <p>优先解决问题</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="vip-plans">
+        <h3>开通会员</h3>
+        <div class="plans-grid">
+          <el-card 
+            v-for="plan in vipPlans" 
+            :key="plan.id"
+            :class="['plan-card', { 'recommended': plan.recommended }]"
+          >
+            <template #header>
+              <div class="plan-header">
+                <h4>{{ plan.name }}</h4>
+                <el-tag v-if="plan.recommended" type="warning">推荐</el-tag>
               </div>
+            </template>
+            <div class="plan-price">
+              <span class="currency">¥</span>
+              <span class="amount">{{ plan.price }}</span>
+              <span class="original-price">¥{{ plan.originalPrice }}</span>
             </div>
             <div class="plan-features">
-              <p v-for="(feature, idx) in plan.features" :key="idx">
-                <i class="el-icon-check"></i> {{ feature }}
-              </p>
+              <ul>
+                <li v-for="(feature, index) in plan.features" :key="index">
+                  <el-icon><Check /></el-icon>
+                  {{ feature }}
+                </li>
+              </ul>
             </div>
-            <el-button type="primary" class="buy-button" :class="{ 'is-recommended': plan.recommended }">
-              立即开通
+            <el-button 
+              type="primary" 
+              class="buy-button"
+              :disabled="isVIP"
+              @click="handleBuyPlan(plan)"
+            >
+              {{ isVIP ? '已是会员' : '立即开通' }}
             </el-button>
           </el-card>
-        </el-col>
-      </el-row>
-    </div>
+        </div>
+      </div>
+
+      <el-dialog
+        v-model="paymentDialogVisible"
+        title="确认支付"
+        width="400px"
+        center
+      >
+        <div class="payment-dialog">
+          <div class="payment-info">
+            <p class="plan-name">{{ selectedPlan?.name }}</p>
+            <p class="plan-price">¥{{ selectedPlan?.price }}</p>
+          </div>
+          <div class="payment-methods">
+            <h4>选择支付方式</h4>
+            <el-radio-group v-model="paymentMethod">
+              <el-radio label="wechat">微信支付</el-radio>
+              <el-radio label="alipay">支付宝</el-radio>
+            </el-radio-group>
+          </div>
+        </div>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="paymentDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="handleConfirmPayment">
+              确认支付
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
+    </template>
+    <el-empty v-else description="请先登录" />
   </div>
 </template>
 
 <script>
+import { computed, ref, onMounted } from 'vue'
+import { useStore } from 'vuex'
+import { ElMessage } from 'element-plus'
+import {
+  VideoPlay,
+  MuteNotification,
+  Download,
+  Service,
+  Check
+} from '@element-plus/icons-vue'
+
 export default {
   name: 'UserVIP',
-  data() {
+  components: {
+    VideoPlay,
+    MuteNotification,
+    Download,
+    Service,
+    Check
+  },
+  setup() {
+    const store = useStore()
+    const paymentDialogVisible = ref(false)
+    const paymentMethod = ref('wechat')
+    const selectedPlan = ref(null)
+    
+    const isLoggedIn = computed(() => store.getters.isLoggedIn)
+    const isVIP = computed(() => store.getters.isVIP)
+    const vipExpireDate = computed(() => store.getters.vipExpireDate)
+    const vipPlans = computed(() => store.getters.vipPlans)
+
+    onMounted(async () => {
+      if (!vipPlans.value.length) {
+        await store.dispatch('fetchVIPPlans')
+      }
+    })
+
+    const handleBuyPlan = (plan) => {
+      selectedPlan.value = plan
+      paymentDialogVisible.value = true
+    }
+
+    const handleConfirmPayment = () => {
+      // 这里应该调用实际的支付接口
+      ElMessage.success('支付成功！')
+      paymentDialogVisible.value = false
+      // 刷新用户信息
+      store.dispatch('fetchUserInfo')
+    }
+
     return {
-      vipPlans: [
-        {
-          name: '月度会员',
-          price: '30',
-          period: '月',
-          features: [
-            '1080P高清视频',
-            '支持下载',
-            '无广告'
-          ]
-        },
-        {
-          name: '年度会员',
-          price: '298',
-          period: '年',
-          recommended: true,
-          features: [
-            '1080P高清视频',
-            '支持下载',
-            '无广告',
-            '专属客服',
-            '节省498元'
-          ]
-        },
-        {
-          name: '终身会员',
-          price: '1598',
-          period: '永久',
-          features: [
-            '1080P高清视频',
-            '支持下载',
-            '无广告',
-            '专属客服',
-            'VIP专享活动'
-          ]
-        }
-      ]
+      isLoggedIn,
+      isVIP,
+      vipExpireDate,
+      vipPlans,
+      paymentDialogVisible,
+      paymentMethod,
+      selectedPlan,
+      handleBuyPlan,
+      handleConfirmPayment
     }
   }
 }
 </script>
 
-<style lang="scss" scoped>
-.vip-center {
-  h2, h3 {
-    margin-bottom: 20px;
+<style scoped>
+.vip-container {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 0 20px;
+}
+
+.vip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.vip-header h2 {
+  margin: 0;
+  color: var(--el-text-color-primary);
+}
+
+.vip-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.expire-date {
+  color: var(--el-text-color-secondary);
+}
+
+.vip-benefits {
+  margin-bottom: 40px;
+}
+
+.vip-benefits h3,
+.vip-plans h3 {
+  margin-bottom: 20px;
+  color: var(--el-text-color-primary);
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.benefit-item {
+  text-align: center;
+  padding: 30px;
+  background-color: var(--el-bg-color-page);
+  border-radius: 8px;
+  transition: transform 0.3s ease;
+}
+
+.benefit-item:hover {
+  transform: translateY(-5px);
+}
+
+.benefit-item .el-icon {
+  font-size: 36px;
+  color: var(--el-color-primary);
+  margin-bottom: 15px;
+}
+
+.benefit-item h4 {
+  margin: 0 0 10px 0;
+  color: var(--el-text-color-primary);
+}
+
+.benefit-item p {
+  margin: 0;
+  color: var(--el-text-color-secondary);
+}
+
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.plan-card {
+  transition: transform 0.3s ease;
+}
+
+.plan-card.recommended {
+  transform: scale(1.05);
+  border-color: var(--el-color-warning);
+}
+
+.plan-card:not(.recommended):hover {
+  transform: translateY(-5px);
+}
+
+.plan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.plan-header h4 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.plan-price {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.currency {
+  font-size: 20px;
+  vertical-align: super;
+}
+
+.amount {
+  font-size: 36px;
+  font-weight: bold;
+  color: var(--el-color-danger);
+}
+
+.original-price {
+  margin-left: 10px;
+  color: var(--el-text-color-secondary);
+  text-decoration: line-through;
+}
+
+.plan-features {
+  margin: 20px 0;
+}
+
+.plan-features ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.plan-features li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  color: var(--el-text-color-regular);
+}
+
+.plan-features .el-icon {
+  color: var(--el-color-success);
+}
+
+.buy-button {
+  width: 100%;
+}
+
+.payment-dialog {
+  text-align: center;
+}
+
+.payment-info {
+  margin-bottom: 20px;
+}
+
+.payment-info .plan-name {
+  font-size: 18px;
+  margin: 0 0 10px 0;
+}
+
+.payment-info .plan-price {
+  font-size: 24px;
+  color: var(--el-color-danger);
+  margin: 0;
+}
+
+.payment-methods {
+  text-align: left;
+}
+
+.payment-methods h4 {
+  margin-bottom: 15px;
+}
+
+@media (max-width: 768px) {
+  .vip-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
   }
 
-  .vip-status {
-    margin-bottom: 30px;
-
-    .status-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-
-      .vip-icon {
-        width: 60px;
-        height: 60px;
-      }
-
-      .info {
-        h3 {
-          margin: 0 0 5px;
-        }
-        p {
-          margin: 0;
-          color: #666;
-        }
-      }
-    }
-
-    .vip-benefits {
-      ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-
-        li {
-          margin-bottom: 8px;
-          color: #666;
-
-          i {
-            color: #409EFF;
-            margin-right: 5px;
-          }
-        }
-      }
-    }
-  }
-
-  .vip-plans {
-    .plan-card {
-      height: 100%;
-      transition: all 0.3s;
-
-      &.recommended {
-        transform: translateY(-10px);
-        border-color: #409EFF;
-      }
-
-      &:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      }
-    }
-
-    .plan-header {
-      text-align: center;
-      padding: 20px 0;
-      border-bottom: 1px solid #eee;
-
-      h4 {
-        margin: 0 0 15px;
-        font-size: 18px;
-      }
-
-      .price {
-        .currency {
-          font-size: 20px;
-          vertical-align: super;
-        }
-        .amount {
-          font-size: 36px;
-          font-weight: bold;
-          color: #409EFF;
-        }
-        .period {
-          color: #999;
-        }
-      }
-    }
-
-    .plan-features {
-      padding: 20px 0;
-
-      p {
-        margin: 10px 0;
-        color: #666;
-
-        i {
-          color: #67C23A;
-          margin-right: 5px;
-        }
-      }
-    }
-
-    .buy-button {
-      width: 100%;
-
-      &.is-recommended {
-        background-color: #409EFF;
-        border-color: #409EFF;
-      }
-    }
+  .plan-card.recommended {
+    transform: none;
   }
 }
 </style> 
