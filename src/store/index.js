@@ -1,8 +1,9 @@
 import { createStore } from 'vuex'
-import { mockMovies, mockAds, mockRankings, mockVIPPlans } from './data'
+import { mockMovies, mockAds, mockRankings, mockVIPPlans, mockBanners } from './data'
 import movie from './modules/movie'
 import user from './modules/user'
 import comment from './modules/comment'
+import ad from './modules/ad'
 
 export default createStore({
   state: {
@@ -11,6 +12,7 @@ export default createStore({
       new: [],
       recommended: []
     },
+    banners: [],
     theme: localStorage.getItem('theme') || 'light',
     navMenu: {
       isOpen: false
@@ -20,13 +22,15 @@ export default createStore({
       hot: [],
       score: []
     },
-    vipPlans: []
+    vipPlans: [],
+    baseURL: process.env.VUE_APP_API_BASE_URL || ''
   },
 
   getters: {
     hotMovies: state => state.movies.hot,
     newMovies: state => state.movies.new,
     recommendedMovies: state => state.movies.recommended,
+    banners: state => state.banners,
     currentTheme: state => state.theme,
     isMenuOpen: state => state.navMenu.isOpen,
     advertisements: state => state.advertisements,
@@ -45,10 +49,12 @@ export default createStore({
     SET_RECOMMENDED_MOVIES(state, movies) {
       state.movies.recommended = movies
     },
-    TOGGLE_THEME(state) {
-      state.theme = state.theme === 'light' ? 'dark' : 'light'
-      localStorage.setItem('theme', state.theme)
-      document.documentElement.setAttribute('data-theme', state.theme)
+    SET_BANNERS(state, banners) {
+      state.banners = banners
+    },
+    SET_THEME(state, theme) {
+      state.theme = theme
+      localStorage.setItem('theme', theme)
     },
     TOGGLE_MENU(state) {
       state.navMenu.isOpen = !state.navMenu.isOpen
@@ -95,6 +101,14 @@ export default createStore({
         console.error('获取推荐电影失败:', error)
       }
     },
+    async fetchBanners({ commit }) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 500))
+        commit('SET_BANNERS', mockBanners)
+      } catch (error) {
+        console.error('获取轮播图数据失败:', error)
+      }
+    },
     async fetchAdvertisements({ commit }) {
       try {
         await new Promise(resolve => setTimeout(resolve, 500))
@@ -119,12 +133,17 @@ export default createStore({
       } catch (error) {
         console.error('获取VIP套餐失败:', error)
       }
+    },
+    toggleTheme({ commit, state }) {
+      const newTheme = state.theme === 'light' ? 'dark' : 'light'
+      commit('SET_THEME', newTheme)
     }
   },
 
   modules: {
     movie,
     user,
-    comment
+    comment,
+    ad
   }
 })

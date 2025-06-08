@@ -1,6 +1,6 @@
 <template>
   <div class="movie-detail" v-loading="loading">
-    <template v-if="!loading && movie">
+    <template v-if="movie">
       <!-- 电影基本信息 -->
       <div class="movie-header">
         <div class="movie-poster">
@@ -68,18 +68,26 @@
           <div class="movie-actions">
             <el-button 
               type="primary" 
-              :icon="VideoPlay"
               @click="handleWatch"
-            >立即观看</el-button>
+            >
+              <el-icon><VideoPlay /></el-icon>
+              立即观看
+            </el-button>
             <el-button 
               :type="isFavorite ? 'warning' : 'default'"
-              :icon="isFavorite ? Star : StarFilled"
               @click="toggleFavorite"
-            >{{ isFavorite ? '已收藏' : '收藏' }}</el-button>
+            >
+              <el-icon>
+                <component :is="isFavorite ? Star : StarFilled" />
+              </el-icon>
+              {{ isFavorite ? '已收藏' : '收藏' }}
+            </el-button>
             <el-button 
-              :icon="Share"
               @click="handleShare"
-            >分享</el-button>
+            >
+              <el-icon><Share /></el-icon>
+              分享
+            </el-button>
           </div>
 
           <div class="movie-desc">
@@ -89,15 +97,7 @@
         </div>
       </div>
 
-      <!-- 播放器区域 -->
-      <div v-if="isPlaying" class="movie-player">
-        <video-player
-          class="vjs-custom-skin"
-          ref="videoPlayer"
-          :options="playerOptions"
-          @ready="onPlayerReady"
-        />
-      </div>
+      
       
       <!-- 评论区 -->
       <div class="movie-comments">
@@ -130,7 +130,6 @@
 
         <!-- 评论列表 -->
         <comment-list
-          v-if="movie"
           :movie-id="movie.id"
           @reply="handleReply"
         />
@@ -142,6 +141,8 @@
         title="分享影片"
         width="400px"
         center
+        :append-to-body="true"
+        :destroy-on-close="true"
       >
         <div class="share-content">
           <div class="qrcode">
@@ -159,26 +160,26 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
 import { useRoute, useRouter } from 'vue-router'
 import { 
   VideoPlay, Star, StarFilled, Share, Picture
 } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import CommentEditor from '@/components/comment/CommentEditor.vue'
 import CommentList from '@/components/comment/CommentList.vue'
 
 export default {
   name: 'MovieDetail',
   components: {
+    CommentEditor,
+    CommentList,
     VideoPlay,
     Star,
     StarFilled,
     Share,
-    Picture,
-    CommentEditor,
-    CommentList
+    Picture
   },
   setup() {
     const store = useStore()
@@ -215,40 +216,44 @@ export default {
         loading.value = true
         const id = route.params.id
         const movieData = await store.dispatch('movie/fetchMovieDetail', id)
-        movie.value = movieData
+        if (movieData) {
+          movie.value = movieData
+        } else {
+          ElMessage.error('电影信息不存在')
+          router.push('/404')
+        }
       } catch (error) {
+        console.error('获取电影信息失败:', error)
         ElMessage.error('获取电影信息失败')
+        router.push('/404')
       } finally {
         loading.value = false
       }
     }
 
     const handleWatch = () => {
-      if (!isLoggedIn.value) {
-        router.push({
-          path: '/user/login',
-          query: { redirect: route.fullPath }
-        })
-        return
-      }
-      
-      if (movie.value.needVIP && !store.getters['user/isVIP']) {
-        router.push('/user/vip')
-        return
-      }
-      
-      isPlaying.value = true
-      if (movie.value.video) {
-        playerOptions.sources[0].src = movie.value.video
-      }
+      // 直接跳转到播放页，在播放页面再处理登录和VIP权限
+      router.push(`/movie/${movie.value.id}/play`)
     }
 
     const toggleFavorite = async () => {
       if (!isLoggedIn.value) {
-        router.push({
-          path: '/user/login',
-          query: { redirect: route.fullPath }
-        })
+        ElMessageBox.confirm(
+          '登录后即可收藏喜欢的影片，是否立即登录？',
+          '提示',
+          {
+            confirmButtonText: '立即登录',
+            cancelButtonText: '暂不登录',
+            type: 'info'
+          }
+        )
+          .then(() => {
+            router.push({
+              path: '/user/login',
+              query: { redirect: route.fullPath }
+            })
+          })
+          .catch(() => {})
         return
       }
       
@@ -287,9 +292,17 @@ export default {
       replyTo.value = null
     }
 
-    // 生命周期
+    // 生命周期钩子
     onMounted(() => {
       fetchMovieDetail()
+    })
+
+    onUnmounted(() => {
+      // 清理组件状态
+      movie.value = null
+      loading.value = false
+      shareDialogVisible.value = false
+      replyTo.value = null
     })
 
     return {

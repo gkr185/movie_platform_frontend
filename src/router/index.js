@@ -27,15 +27,22 @@ const routes = [
   {
     // 电影相关路由
     path: '/movie',
-    component: () => import('@/views/movie/Index.vue'),
-    children: [
-      {
-        path: ':id',
-        name: 'MovieDetail',
-        component: () => import('@/views/movie/Detail.vue'),
-        props: true
-      }
-    ]
+    name: 'MovieIndex',
+    component: () => import('@/views/movie/Index.vue')
+  },
+  {
+    path: '/movie/:id',
+    name: 'MovieDetail',
+    component: () => import('@/views/movie/Detail.vue'),
+    props: true
+  },
+  {
+    path: '/movie/:id/play',
+    name: 'MoviePlay',
+    component: () => import('@/views/movie/Play.vue'),
+    meta: {
+      requiresAuth: true
+    }
   },
   {
     // 用户相关路由
@@ -97,8 +104,12 @@ const routes = [
       }
     ]
   },
-  
-
+  // 添加404路由
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@/views/NotFound.vue')
+  }
 ]
 
 const router = createRouter({

@@ -13,7 +13,7 @@ export default {
 <style lang="scss" scoped>
 .movie-layout {
   min-height: calc(100vh - 60px);
-  padding: 20px;
+  padding: 40px;
   background-color: var(--bg-color);
   transition: background-color 0.3s;
 

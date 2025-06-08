@@ -7,11 +7,11 @@
         <el-rate
           v-model="score"
           :max="10"
-          :allow-half="true"
-          text-color="#ff9900"
-        >
-          <template #suffix>{{ score }}分</template>
-        </el-rate>
+          :low-threshold="4"
+          :high-threshold="8"
+          :colors="['#F56C6C', '#E6A23C', '#67C23A']"
+        />
+        <span class="score-value">{{ score }}分</span>
       </div>
     </div>
 
@@ -20,32 +20,50 @@
         v-model="content"
         type="textarea"
         :rows="3"
-        :maxlength="500"
-        :placeholder="replyTo ? `回复 @${replyTo.name}` : '说说你的想法...'"
+        :maxlength="1000"
+        placeholder="写下你的观后感..."
         show-word-limit
+        resize="none"
       />
     </div>
 
     <div class="editor-footer">
-      <div class="left">
-        <el-checkbox v-if="!replyTo" v-model="isPrivate">
-          仅作者可见
+      <div class="left-actions">
+        <div class="score-wrapper">
+          <span class="label">评分：</span>
+          <el-rate
+            v-model="score"
+            :max="10"
+            :low-threshold="4"
+            :high-threshold="8"
+            :colors="['#F56C6C', '#E6A23C', '#67C23A']"
+          />
+          <span class="score-value">{{ score }}分</span>
+        </div>
+        
+        <el-checkbox v-model="isPrivate">
+          <el-tooltip
+            content="开启后仅自己可见"
+            placement="top"
+          >
+            <span>私密评论</span>
+          </el-tooltip>
         </el-checkbox>
       </div>
-      <div class="right">
+      
+      <div class="right-actions">
         <el-button @click="handleCancel">取消</el-button>
         <el-button 
           type="primary" 
           :loading="submitting"
           :disabled="!canSubmit"
           @click="handleSubmit"
-        >
-          发布
-        </el-button>
+        >发表评论</el-button>
       </div>
     </div>
   </div>
 </template>
+
 
 <script>
 import { ref, computed } from 'vue'
@@ -72,7 +90,7 @@ export default {
   setup(props, { emit }) {
     const store = useStore()
     const content = ref('')
-    const score = ref(0)
+    const score = ref(8)
     const isPrivate = ref(false)
     const submitting = ref(false)
 
@@ -84,6 +102,9 @@ export default {
     })
 
     const handleCancel = () => {
+      content.value = ''
+      score.value = 8
+      isPrivate.value = false
       emit('cancel')
     }
 
@@ -96,15 +117,15 @@ export default {
           // 发表回复
           await store.dispatch('comment/addReply', {
             parentId: props.parentId,
-            content: content.value,
-            replyTo: props.replyTo.id
+            content: content.value.trim(),
+            replyTo: props.replyTo
           })
           ElMessage.success('回复成功')
         } else {
           // 发表评论
           await store.dispatch('comment/addComment', {
             movieId: props.movieId,
-            content: content.value,
+            content: content.value.trim(),
             score: score.value,
             isPrivate: isPrivate.value
           })
@@ -112,7 +133,7 @@ export default {
         }
         emit('success')
       } catch (error) {
-        ElMessage.error(error.message || '发布失败')
+        ElMessage.error(error.message || '发表失败，请重试')
       } finally {
         submitting.value = false
       }
@@ -172,10 +193,35 @@ export default {
 
   .editor-footer {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
-    margin-top: 20px;
-    gap: 15px;
+    margin-top: 15px;
+
+    .left-actions {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+
+      .score-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        .label {
+          color: var(--text-color-light);
+        }
+
+        .score-value {
+          color: var(--text-color);
+          min-width: 40px;
+        }
+      }
+    }
+
+    .right-actions {
+      display: flex;
+      gap: 10px;
+    }
   }
 
   .reply-info {

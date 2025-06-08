@@ -1,46 +1,44 @@
 <template>
   <div class="comment-list">
-    <!-- 评论统计 -->
-    <div class="comment-stats">
-      <h3>全部评论 ({{ total }})</h3>
-      <el-select v-model="sortBy" size="small" @change="handleSortChange">
-        <el-option label="最新" value="newest" />
-        <el-option label="最热" value="hottest" />
-        <el-option label="评分从高到低" value="score-desc" />
-        <el-option label="评分从低到高" value="score-asc" />
-      </el-select>
+    <!-- 排序选项 -->
+    <div class="sort-options">
+      <el-radio-group v-model="sortBy" size="small" @change="handleSortChange">
+        <el-radio-button label="newest">最新</el-radio-button>
+        <el-radio-button label="hottest">最热</el-radio-button>
+        <el-radio-button label="score-desc">评分从高到低</el-radio-button>
+        <el-radio-button label="score-asc">评分从低到高</el-radio-button>
+      </el-radio-group>
     </div>
 
     <!-- 评论列表 -->
-    <div v-if="comments.length" class="comment-items">
-      <comment-item
-        v-for="comment in comments"
-        :key="comment.id"
-        :comment="comment"
-        @reply="handleReply"
-        @like="handleLike"
-        @delete="handleDelete"
-      />
-    </div>
-    <el-empty v-else description="暂无评论" />
-
-    <!-- 分页 -->
-    <div class="pagination-wrapper" v-if="total > pageSize">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :total="total"
-        :page-sizes="[10, 20, 30, 50]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
+    <div class="list-content" v-loading="loading">
+      <template v-if="commentList.length">
+        <comment-item
+          v-for="comment in commentList"
+          :key="comment.id"
+          :comment="comment"
+          @reply="handleReply"
+        />
+        
+        <!-- 分页 -->
+        <div class="pagination-wrapper">
+          <el-pagination
+            v-if="total > pageSize"
+            v-model:currentPage="currentPage"
+            :page-size="pageSize"
+            :total="total"
+            layout="prev, pager, next"
+            @current-change="handlePageChange"
+          />
+        </div>
+      </template>
+      <el-empty v-else description="暂无评论" />
     </div>
   </div>
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import CommentItem from './CommentItem.vue'
@@ -63,12 +61,13 @@ export default {
     const pageSize = ref(10)
     const sortBy = ref('newest')
     
-    const comments = computed(() => store.getters['comment/commentList'])
+    const loading = computed(() => store.getters['comment/loading'])
+    const commentList = computed(() => store.getters['comment/commentList'])
     const total = computed(() => store.getters['comment/total'])
     const isLoggedIn = computed(() => store.getters['user/isLoggedIn'])
 
-    // 获取评论列表
-    const fetchComments = async () => {
+    // 加载评论
+    const loadComments = async () => {
       try {
         await store.dispatch('comment/fetchComments', {
           movieId: props.movieId,
@@ -77,8 +76,18 @@ export default {
           sortBy: sortBy.value
         })
       } catch (error) {
-        ElMessage.error('获取评论失败')
+        console.error('加载评论失败:', error)
       }
+    }
+
+    // 处理页码变化
+    const handlePageChange = (page) => {
+      currentPage.value = page
+    }
+
+    // 处理排序方式变化
+    const handleSortChange = () => {
+      currentPage.value = 1
     }
 
     // 处理回复
@@ -118,7 +127,7 @@ export default {
         )
         await store.dispatch('comment/deleteComment', commentId)
         ElMessage.success('删除成功')
-        fetchComments()
+        loadComments()
       } catch (error) {
         if (error !== 'cancel') {
           ElMessage.error('删除失败')
@@ -126,38 +135,35 @@ export default {
       }
     }
 
-    // 处理排序方式改变
-    const handleSortChange = () => {
+    // 监听分页和排序变化
+    watch([currentPage, sortBy], () => {
+      loadComments()
+    })
+
+    // 监听电影ID变化
+    watch(() => props.movieId, () => {
       currentPage.value = 1
-      fetchComments()
-    }
+      sortBy.value = 'newest'
+      loadComments()
+    })
 
-    // 处理页码改变
-    const handleCurrentChange = () => {
-      fetchComments()
-    }
-
-    // 处理每页条数改变
-    const handleSizeChange = () => {
-      currentPage.value = 1
-      fetchComments()
-    }
-
-    // 初始加载
-    fetchComments()
+    // 组件挂载时加载评论
+    onMounted(() => {
+      loadComments()
+    })
 
     return {
       currentPage,
       pageSize,
       sortBy,
-      comments,
+      loading,
+      commentList,
       total,
+      handlePageChange,
+      handleSortChange,
       handleReply,
       handleLike,
-      handleDelete,
-      handleSortChange,
-      handleCurrentChange,
-      handleSizeChange
+      handleDelete
     }
   }
 }
@@ -165,63 +171,18 @@ export default {
 
 <style lang="scss" scoped>
 .comment-list {
-  .list-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  .sort-options {
     margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid var(--comment-border);
-
-    .total {
-      font-size: 14px;
-      color: var(--text-color-light);
-    }
-
-    .sort-options {
-      display: flex;
-      gap: 15px;
-
-      .sort-item {
-        color: var(--comment-action);
-        cursor: pointer;
-        transition: color 0.3s;
-
-        &:hover {
-          color: var(--comment-action-hover);
-        }
-
-        &.active {
-          color: var(--comment-action-active);
-          font-weight: 500;
-        }
-      }
-    }
   }
 
-  .empty-tip {
-    text-align: center;
-    padding: 40px 0;
-    color: var(--text-color-light);
-  }
-
-  .load-more {
-    text-align: center;
-    margin-top: 20px;
-  }
-
-  .comment-items {
-    .comment-item {
-      &:last-child {
-        border-bottom: none;
-      }
-    }
+  .list-content {
+    min-height: 200px;
   }
 
   .pagination-wrapper {
+    margin-top: 20px;
     display: flex;
     justify-content: center;
-    margin-top: 30px;
   }
 }
 </style> 

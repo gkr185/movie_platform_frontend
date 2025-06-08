@@ -42,10 +42,21 @@ html, body {
   background-color: var(--bg-color);
   color: var(--text-color);
   transition: background-color 0.3s, color 0.3s;
+  position: relative;
   
   .main-container {
-    padding-top: 60px; // 导航栏的高度
-    min-height: calc(100vh - 60px); // 减去导航栏高度
+    padding-top: 72px; // 导航栏的高度
+    min-height: calc(100vh - 72px); // 减去导航栏高度
+  }
+
+  // 导航栏样式
+  .nav-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000; // 确保导航栏在最上层
+    background-color: var(--bg-color);
   }
 }
 

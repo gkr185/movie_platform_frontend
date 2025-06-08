@@ -60,12 +60,30 @@ export default {
       }
     },
 
-    ADD_TO_HISTORY(state, movie) {
+    ADD_TO_HISTORY(state, { movie, progress }) {
+      const now = new Date().toISOString()
+      const historyItem = {
+        id: movie.id,
+        title: movie.title,
+        cover: movie.cover,
+        watchTime: now,
+        progress: progress,
+        duration: movie.duration,
+        quality: movie.quality,
+        lastPosition: progress * (movie.duration || 0)
+      }
+
       const index = state.watchHistory.findIndex(item => item.id === movie.id)
       if (index > -1) {
         state.watchHistory.splice(index, 1)
       }
-      state.watchHistory.unshift(movie)
+      state.watchHistory.unshift(historyItem)
+
+      // 限制历史记录数量为50条
+      if (state.watchHistory.length > 50) {
+        state.watchHistory.pop()
+      }
+
       if (state.user) {
         state.user.watchHistory = state.watchHistory
         localStorage.setItem('user', JSON.stringify(state.user))
@@ -228,10 +246,10 @@ export default {
       }
     },
 
-    async addToHistory({ commit }, movie) {
+    async addToHistory({ commit }, { movie, progress }) {
       try {
         await new Promise(resolve => setTimeout(resolve, 300))
-        commit('ADD_TO_HISTORY', movie)
+        commit('ADD_TO_HISTORY', { movie, progress })
       } catch (error) {
         console.error('添加观看历史失败:', error)
         throw error

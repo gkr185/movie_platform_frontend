@@ -5,12 +5,21 @@ export const mockMovies = {
       id: 1, 
       title: '流浪地球2', 
       score: 8.6, 
-      cover: '/uploads/posters/wdzsj.jpg',
+      cover: '/uploads/posters/OIP-C.jpg',
       year: 2023,
       quality: '4K',
       resolution: 'ULTRA HD',
       tags: ['科幻', '冒险'],
-      description: '太阳即将毁灭，人类在地球表面建造出巨大的推进器，寻找新的家园。然而宇宙之路危机四伏，为了拯救地球，流浪地球时代的年轻人再次挺身而出，展开争分夺秒的生死之战。'
+      description: '太阳即将毁灭，人类在地球表面建造出巨大的推进器，寻找新的家园。然而宇宙之路危机四伏，为了拯救地球，流浪地球时代的年轻人再次挺身而出，展开争分夺秒的生死之战。',
+      duration: '2小时53分钟',
+      videoUrl: '/uploads/videos/movie-1.mp4',
+      needVIP: true,
+      supportedQualities: ['1080p', '4K'],
+      defaultQuality: '1080p',
+      subtitles: [
+        { language: 'zh', url: '/uploads/subtitles/movie-1-zh.vtt' },
+        { language: 'en', url: '/uploads/subtitles/movie-1-en.vtt' }
+      ]
     },
     { 
       id: 2, 
@@ -48,7 +57,16 @@ export const mockMovies = {
       quality: '4K',
       resolution: 'ULTRA HD',
       tags: ['动画', '奇幻'],
-      description: '将门锁住是为了保护谁？少女铃芽邂逅了正在寻找神秘之门的青年草太，并跟随他踏上了一段奇妙的旅程。'
+      description: '将门锁住是为了保护谁？少女铃芽邂逅了正在寻找神秘之门的青年草太，并跟随他踏上了一段奇妙的旅程。',
+      duration: '2小时2分钟',
+      videoUrl: '/uploads/videos/movie-7.mp4',
+      needVIP: true,
+      supportedQualities: ['1080p', '4K'],
+      defaultQuality: '1080p',
+      subtitles: [
+        { language: 'zh', url: '/uploads/subtitles/movie-7-zh.vtt' },
+        { language: 'en', url: '/uploads/subtitles/movie-7-en.vtt' }
+      ]
     },
     { 
       id: 8, 
@@ -76,7 +94,9 @@ export const mockMovies = {
       quality: '4K',
       resolution: 'ULTRA HD',
       tags: ['剧情', '犯罪'],
-      description: '一场谋杀案使银行家安迪蒙冤入狱，在肖申克监狱中他与瑞德结为好友，同时不断地谋划着逃跑的计划。'
+      description: '一场谋杀案使银行家安迪蒙冤入狱，在肖申克监狱中他与瑞德结为好友，同时不断地谋划着逃跑的计划。',
+      duration: '2小时22分钟',
+      videoUrl: '/uploads/videos/movie-13.mp4'
     },
     { id: 14, title: '霸王别姬', score: 9.6, cover: 'https://img.movie.com/farewell.jpg' },
     { id: 15, title: '阿甘正传', score: 9.5, cover: 'https://img.movie.com/forrest-gump.jpg' },
@@ -185,22 +205,31 @@ export const mockUsers = {
         id: 1,
         title: '流浪地球2',
         cover: '/uploads/posters/wdzsj.jpg',
-        watchTime: '2024-01-20 14:30',
-        progress: 0.8
+        watchTime: '2024-01-20T14:30:00.000Z',
+        progress: 0.8,
+        duration: '173分钟',
+        quality: '4K',
+        lastPosition: 8280 // 173分钟 * 0.8 * 60
       },
       {
         id: 2,
         title: '满江红',
         cover: 'https://img.movie.com/full-river-red.jpg',
-        watchTime: '2024-01-19 20:00',
-        progress: 1
+        watchTime: '2024-01-19T20:00:00.000Z',
+        progress: 1,
+        duration: '159分钟',
+        quality: '4K',
+        lastPosition: 9540 // 159分钟 * 60
       },
       {
         id: 3,
         title: '无名',
         cover: 'https://img.movie.com/anonymous.jpg',
-        watchTime: '2024-01-18 19:15',
-        progress: 0.6
+        watchTime: '2024-01-18T19:15:00.000Z',
+        progress: 0.6,
+        duration: '128分钟',
+        quality: '4K',
+        lastPosition: 4608 // 128分钟 * 0.6 * 60
       }
     ],
     favorites: [
@@ -253,8 +282,8 @@ export const mockUsers = {
   },
   user1: {
     id: 3,
-    username: 'user1',
-    password: 'user123',
+    username: '111',
+    password: '123123',
     name: '普通用户',
     avatar: '',
     email: 'user1@example.com',
@@ -476,3 +505,58 @@ export const mockReplies = new Map([
     }
   ]]
 ])
+
+// 轮播图数据
+export const mockBanners = [
+  {
+    id: 1,
+    title: '流浪地球2',
+    subtitle: '2023开年科幻巨制',
+    description: '太阳即将毁灭，人类在地球表面建造出巨大的推进器，寻找新的家园。然而宇宙之路危机四伏，为了拯救地球，流浪地球时代的年轻人再次挺身而出，展开争分夺秒的生死之战。',
+    image: '/uploads/banners/163789.jpg',
+    link: '/movie/1',
+    score: 8.6,
+    year: 2023,
+    quality: '4K',
+    resolution: 'ULTRA HD',
+    tags: ['科幻', '冒险'],
+    active: true
+  },
+  {
+    id: 2,
+    title: '满江红',
+    subtitle: '张艺谋悬疑巨作',
+    description: '南宋绍兴年间，岳飞死后四年，秦桧率领的贪腐集团逐渐瓦解。一个汴京城小兵，为了给兄长报仇，与一个落魄的御前带刀侍卫联手，调查一桩离奇命案，深入危机四伏的权力之局。',
+    image: '/uploads/banners/full-river-red.jpg',
+    link: '/movie/2',
+    score: 8.2,
+    year: 2023,
+    quality: '4K',
+    resolution: 'ULTRA HD',
+    tags: ['悬疑', '剧情'],
+    active: true
+  },
+  {
+    id: 3,
+    title: '铃芽之旅',
+    subtitle: '新海诚最新力作',
+    description: '将门锁住是为了保护谁？少女铃芽邂逅了正在寻找神秘之门的青年草太，并跟随他踏上了一段奇妙的旅程。',
+    image: '/uploads/banners/suzume.jpg',
+    link: '/movie/7',
+    score: 8.3,
+    quality: '4K',
+    resolution: 'ULTRA HD',
+    tags: ['动画', '奇幻'],
+    active: true
+  },
+  {
+    id: 4,
+    title: '新会员特惠',
+    subtitle: '限时优惠',
+    description: '新用户注册即可享受会员7天免费试用，还可获得观影券一张。活动期间开通年度会员还可享受8.8折优惠。',
+    image: '/uploads/banners/vip-promotion.jpg',
+    link: '/user/vip',
+    type: 'promotion',
+    active: true
+  }
+]
