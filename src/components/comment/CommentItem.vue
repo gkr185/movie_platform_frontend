@@ -1,101 +1,115 @@
 <template>
   <div class="comment-item">
-    <!-- 用户头像 -->
-    <div class="user-avatar">
-      <el-avatar :size="40" :src="comment.user.avatar">
-        <el-icon><UserFilled /></el-icon>
-      </el-avatar>
-    </div>
-
-    <!-- 评论内容 -->
-    <div class="comment-content">
-      <!-- 用户信息和评分 -->
-      <div class="comment-header">
-        <div class="user-info">
-          <span class="username">{{ comment.user.name }}</span>
-          <el-tag v-if="comment.user.isVIP" size="small" type="warning">VIP</el-tag>
-        </div>
-        <div class="rating">
-          <el-rate
-            v-model="comment.score"
-            disabled
-            :max="10"
-            :allow-half="true"
-            text-color="#ff9900"
-          >
-            <template #suffix>{{ comment.score }}分</template>
-          </el-rate>
-        </div>
-      </div>
-
-      <!-- 评论文本 -->
-      <div class="comment-text">{{ comment.content }}</div>
-
-      <!-- 评论时间和操作 -->
-      <div class="comment-footer">
-        <span class="time">{{ formatTime(comment.createTime) }}</span>
-        <div class="actions">
-          <el-button 
-            type="text" 
-            size="small"
-            :class="{ 'liked': comment.isLiked }"
-            @click="$emit('like', comment.id)"
-          >
-            <el-icon><ThumbsUp /></el-icon>
-            {{ comment.likes > 0 ? comment.likes : '点赞' }}
-          </el-button>
-          <el-button 
-            type="text" 
-            size="small"
-            @click="$emit('reply', comment)"
-          >
-            <el-icon><ChatDotRound /></el-icon>
-            回复
-          </el-button>
-          <el-button 
-            v-if="canDelete"
-            type="text" 
-            size="small"
-            @click="$emit('delete', comment.id)"
-          >
-            <el-icon><Delete /></el-icon>
-            删除
-          </el-button>
-        </div>
-      </div>
-
-      <!-- 回复列表 -->
-      <div v-if="comment.replies?.length" class="reply-list">
-        <div 
-          v-for="reply in comment.replies" 
-          :key="reply.id" 
-          class="reply-item"
+    <div class="comment-main">
+      <!-- 用户头像 -->
+      <div class="user-avatar">
+        <el-avatar 
+          :size="40"
+          :src="comment.user.avatar"
+          :alt="comment.user.name"
         >
-          <div class="reply-content">
-            <span class="reply-user">{{ reply.user.name }}</span>
-            <template v-if="reply.replyTo">
-              回复
-              <span class="reply-to">@{{ reply.replyTo.name }}</span>
-            </template>：
-            <span class="reply-text">{{ reply.content }}</span>
+          {{ comment.user.name.charAt(0) }}
+        </el-avatar>
+      </div>
+
+      <div class="comment-content">
+        <!-- 用户信息和评分 -->
+        <div class="comment-header">
+          <div class="user-info">
+            <span class="username">{{ comment.user.name }}</span>
+            <el-tag 
+              v-if="comment.user.isVIP" 
+              size="small" 
+              type="warning"
+              class="vip-tag"
+            >VIP</el-tag>
           </div>
-          <div class="reply-footer">
-            <span class="time">{{ formatTime(reply.createTime) }}</span>
-            <div class="actions">
-              <el-button 
-                type="text" 
-                size="small"
-                @click="$emit('reply', { ...comment, replyTo: reply.user })"
+          <div class="comment-score" v-if="comment.score">
+            <el-rate
+              v-model="comment.score"
+              disabled
+              text-color="#ff9900"
+              score-template="{value}"
+            />
+          </div>
+        </div>
+
+        <!-- 评论内容 -->
+        <div class="comment-text">{{ comment.content }}</div>
+
+        <!-- 评论时间和操作 -->
+        <div class="comment-footer">
+          <span class="comment-time">{{ comment.createTime }}</span>
+          <div class="comment-actions">
+            <el-button 
+              type="primary" 
+              link
+              :class="{ 'is-liked': comment.isLiked }"
+              @click="handleLike"
+            >
+              <el-icon><Thumb /></el-icon>
+              {{ comment.likes || 0 }}
+            </el-button>
+            <el-button 
+              type="primary" 
+              link
+              @click="handleReply"
+            >
+              <el-icon><ChatLineRound /></el-icon>
+              回复
+            </el-button>
+            <el-button 
+              v-if="canDelete"
+              type="danger" 
+              link
+              @click="handleDelete"
+            >
+              <el-icon><Delete /></el-icon>
+              删除
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 回复列表 -->
+        <div v-if="comment.replies && comment.replies.length" class="reply-list">
+          <div 
+            v-for="reply in comment.replies" 
+            :key="reply.id" 
+            class="reply-item"
+          >
+            <div class="reply-avatar">
+              <el-avatar 
+                :size="32"
+                :src="reply.user.avatar"
               >
-                回复
-              </el-button>
+                {{ reply.user.name.charAt(0) }}
+              </el-avatar>
+            </div>
+            <div class="reply-content">
+              <div class="reply-header">
+                <span class="reply-username">{{ reply.user.name }}</span>
+                <el-tag 
+                  v-if="reply.user.isVIP" 
+                  size="small" 
+                  type="warning"
+                  class="vip-tag"
+                >VIP</el-tag>
+                <template v-if="reply.replyTo">
+                  <el-icon><Right /></el-icon>
+                  <span class="reply-to">{{ reply.replyTo.name }}</span>
+                </template>
+              </div>
+              <div class="reply-text">{{ reply.content }}</div>
+              <div class="reply-footer">
+                <span class="reply-time">{{ reply.createTime }}</span>
+                <el-button 
+                  type="primary" 
+                  link
+                  @click="handleReplyToReply(reply)"
+                >回复</el-button>
+              </div>
             </div>
           </div>
-        </div>
-        <div v-if="comment.replyCount > comment.replies.length" class="more-replies">
-          <el-button type="text" @click="loadMoreReplies(comment.id)">
-            查看更多回复 ({{ comment.replyCount - comment.replies.length }})
-          </el-button>
         </div>
       </div>
     </div>
@@ -105,17 +119,15 @@
 <script>
 import { computed } from 'vue'
 import { useStore } from 'vuex'
-import { ElMessage } from 'element-plus'
-import { UserFilled, ThumbsUp, ChatDotRound, Delete } from '@element-plus/icons-vue'
-import { format } from 'date-fns'
+import { Thumb, ChatLineRound, Delete, Right } from '@element-plus/icons-vue'
 
 export default {
   name: 'CommentItem',
   components: {
-    UserFilled,
-    ThumbsUp,
-    ChatDotRound,
-    Delete
+    Thumb,
+    ChatLineRound,
+    Delete,
+    Right
   },
   props: {
     comment: {
@@ -124,34 +136,37 @@ export default {
     }
   },
   emits: ['reply', 'like', 'delete'],
-  setup(props) {
+  setup(props, { emit }) {
     const store = useStore()
-    
-    const currentUser = computed(() => store.getters['user/currentUser'])
+    const currentUser = computed(() => store.state.user.user)
+
     const canDelete = computed(() => {
-      return currentUser.value && (
-        currentUser.value.id === props.comment.user.id || 
-        currentUser.value.isAdmin
-      )
+      if (!currentUser.value) return false
+      return currentUser.value.id === props.comment.user.id || currentUser.value.isAdmin
     })
 
-    const formatTime = (time) => {
-      if (!time) return ''
-      return format(new Date(time), 'yyyy-MM-dd HH:mm')
+    const handleLike = () => {
+      emit('like', props.comment.id)
     }
 
-    const loadMoreReplies = async (commentId) => {
-      try {
-        await store.dispatch('comment/loadMoreReplies', commentId)
-      } catch (error) {
-        ElMessage.error('加载回复失败')
-      }
+    const handleReply = () => {
+      emit('reply', props.comment)
+    }
+
+    const handleReplyToReply = (reply) => {
+      emit('reply', { ...props.comment, replyTo: reply.user })
+    }
+
+    const handleDelete = () => {
+      emit('delete', props.comment.id)
     }
 
     return {
       canDelete,
-      formatTime,
-      loadMoreReplies
+      handleLike,
+      handleReply,
+      handleReplyToReply,
+      handleDelete
     }
   }
 }
@@ -161,126 +176,225 @@ export default {
 .comment-item {
   padding: 20px;
   border-bottom: 1px solid var(--comment-border);
-  background-color: var(--comment-bg);
   transition: background-color 0.3s;
 
-  &:hover {
-    background-color: var(--comment-hover-bg);
+  &:last-child {
+    border-bottom: none;
+  }
+
+  
+
+  .comment-main {
+    display: flex;
+    gap: 16px;
+  }
+
+  .user-avatar {
+    flex-shrink: 0;
+  }
+
+  .comment-content {
+    flex: 1;
+    min-width: 0;
   }
 
   .comment-header {
     display: flex;
     align-items: center;
-    margin-bottom: 15px;
-
-    .avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      margin-right: 12px;
-    }
+    justify-content: space-between;
+    margin-bottom: 8px;
 
     .user-info {
-      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-      .username {
-        font-weight: 500;
-        color: var(--comment-text);
-        margin-bottom: 4px;
-      }
+    .username {
+      font-weight: 500;
+      color: var(--comment-text);
+    }
 
-      .meta-info {
-        font-size: 12px;
-        color: var(--comment-text-light);
-
-        .rating {
-          margin-right: 10px;
-          color: var(--el-color-warning);
-        }
-
-        .time {
-          color: var(--comment-text-light);
-        }
-      }
+    .vip-tag {
+      transform: scale(0.8);
+      transform-origin: left center;
     }
   }
 
-  .comment-content {
-    margin-left: 52px;
+  .comment-text {
+    color: var(--comment-text);
+    line-height: 1.6;
+    margin: 12px 0;
+    word-break: break-word;
+  }
 
-    .text {
-      color: var(--comment-text);
-      line-height: 1.6;
-      margin-bottom: 15px;
-      word-break: break-all;
+  .comment-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+
+    .comment-time {
+      font-size: 13px;
+      color: var(--comment-text-light);
     }
 
-    .actions {
+    .comment-actions {
       display: flex;
-      gap: 15px;
+      gap: 16px;
 
-      .action-item {
+      .el-button {
         display: flex;
         align-items: center;
         gap: 4px;
+        font-size: 13px;
         color: var(--comment-action);
-        cursor: pointer;
-        transition: color 0.3s;
 
         &:hover {
           color: var(--comment-action-hover);
         }
 
-        &.active {
+        &.is-liked {
           color: var(--comment-action-active);
-        }
-
-        .count {
-          font-size: 12px;
         }
       }
     }
   }
 
   .reply-list {
-    margin: 15px 0 0 52px;
-    padding: 15px;
-    background-color: var(--comment-reply-bg);
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--comment-reply-bg);
+    border-radius: 8px;
+  }
+
+  .reply-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
     border-radius: 4px;
+    transition: background-color 0.3s;
+
+    &:hover {
+      background: var(--comment-hover-bg);
+    }
+
+    .reply-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .reply-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+
+      .reply-username {
+        font-weight: 500;
+        color: var(--comment-text);
+      }
+
+      .reply-to {
+        color: var(--comment-text-light);
+      }
+
+      .el-icon {
+        font-size: 12px;
+        color: var(--comment-text-light);
+      }
+    }
+
+    .reply-text {
+      color: var(--comment-text);
+      line-height: 1.6;
+      margin: 8px 0;
+      word-break: break-word;
+    }
+
+    .reply-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+
+      .reply-time {
+        font-size: 12px;
+        color: var(--comment-text-light);
+      }
+
+      .el-button {
+        color: var(--comment-action);
+        &:hover {
+          color: var(--comment-action-hover);
+        }
+      }
+    }
+  }
+}
+
+// 响应式设计
+@media screen and (max-width: 768px) {
+  .comment-item {
+    padding: 16px;
+
+    .comment-main {
+      gap: 12px;
+    }
+
+    .user-avatar {
+      :deep(.el-avatar) {
+        width: 36px;
+        height: 36px;
+      }
+    }
+
+    .comment-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .comment-footer {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+
+      .comment-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+
+    .reply-list {
+      margin-top: 12px;
+      padding: 8px;
+    }
 
     .reply-item {
-      padding: 10px 0;
-      border-bottom: 1px solid var(--comment-divider);
+      padding: 8px;
 
-      &:last-child {
-        border-bottom: none;
-      }
-
-      .reply-header {
-        display: flex;
-        align-items: center;
-        margin-bottom: 8px;
-
-        .username {
-          font-weight: 500;
-          color: var(--comment-text);
-        }
-
-        .reply-to {
-          margin: 0 8px;
-          color: var(--comment-text-light);
-        }
-
-        .time {
-          font-size: 12px;
-          color: var(--comment-text-light);
+      .reply-avatar {
+        :deep(.el-avatar) {
+          width: 28px;
+          height: 28px;
         }
       }
+    }
+  }
+}
 
-      .reply-content {
-        color: var(--comment-text);
-        line-height: 1.6;
-      }
+// 深色模式适配
+html[data-theme='dark'] {
+  .comment-item {
+    
+
+    .reply-list {
+      background: var(--el-fill-color-dark);
+    }
+
+    .reply-item:hover {
+      background: var(--el-fill-color-darker);
     }
   }
 }

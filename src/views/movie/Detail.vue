@@ -30,11 +30,12 @@
           
           <div class="movie-tags">
             <el-tag 
-              v-for="tag in movie.tags" 
-              :key="tag"
+              v-for="category in movieCategories" 
+              :key="category.id"
               size="small"
               class="movie-tag"
-            >{{ tag }}</el-tag>
+              :type="category.parentId === 0 ? '' : 'info'"
+            >{{ category.name }}</el-tag>
             <el-tag 
               size="small" 
               type="warning"
@@ -135,6 +136,13 @@
         />
       </div>
 
+      <!-- 相关推荐 -->
+      <related-movies
+        v-if="movie"
+        :current-movie="movie"
+        :limit="6"
+      />
+
       <!-- 分享对话框 -->
       <el-dialog
         v-model="shareDialogVisible"
@@ -169,12 +177,14 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import CommentEditor from '@/components/comment/CommentEditor.vue'
 import CommentList from '@/components/comment/CommentList.vue'
+import RelatedMovies from '@/components/movie/RelatedMovies.vue'
 
 export default {
   name: 'MovieDetail',
   components: {
     CommentEditor,
     CommentList,
+    RelatedMovies,
     VideoPlay,
     Star,
     StarFilled,
@@ -199,6 +209,12 @@ export default {
       if (!movie.value) return false
       return store.getters['movie/isFavorite'](movie.value.id)
     })
+    const movieCategories = computed(() => {
+      if (!movie.value) return []
+      const categories = store.getters['category/getMovieCategories'](movie.value.id)
+      console.log('Detail组件获取到的分类:', categories)
+      return categories || []
+    })
     
     // 播放器配置
     const playerOptions = {
@@ -218,6 +234,9 @@ export default {
         const movieData = await store.dispatch('movie/fetchMovieDetail', id)
         if (movieData) {
           movie.value = movieData
+          // 获取电影分类
+          const categories = await store.dispatch('category/fetchMovieCategories', id)
+          console.log('Detail组件获取到的分类数据:', categories)
         } else {
           ElMessage.error('电影信息不存在')
           router.push('/404')
@@ -312,6 +331,7 @@ export default {
       shareDialogVisible,
       isLoggedIn,
       isFavorite,
+      movieCategories,
       replyTo,
       playerOptions,
       VideoPlay,
@@ -418,7 +438,6 @@ export default {
 
       .movie-tag {
         margin-right: 10px;
-        margin-bottom: 10px;
       }
     }
   }

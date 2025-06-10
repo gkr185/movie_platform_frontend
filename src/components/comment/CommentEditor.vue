@@ -1,69 +1,68 @@
 <template>
   <div class="comment-editor">
-    <div class="editor-header">
-      <h3>{{ replyTo ? '回复评论' : '发表评论' }}</h3>
-      <div v-if="!replyTo" class="rating">
-        <span class="label">评分：</span>
-        <el-rate
-          v-model="score"
-          :max="10"
-          :low-threshold="4"
-          :high-threshold="8"
-          :colors="['#F56C6C', '#E6A23C', '#67C23A']"
-        />
-        <span class="score-value">{{ score }}分</span>
-      </div>
+    <!-- 评分区域 -->
+    <div class="rating-section" v-if="!replyTo">
+      <span class="rating-label">评分：</span>
+      <el-rate
+        v-model="score"
+        :max="10"
+        :allow-half="true"
+        class="rating-stars"
+      />
+      <span class="rating-value">{{ score }}分</span>
     </div>
 
-    <div class="editor-content">
+    <!-- 回复提示 -->
+    <div v-if="replyTo" class="reply-info">
+      回复 <span class="reply-name">@{{ replyTo.name }}</span>：
+      <el-button 
+        type="primary" 
+        link
+        class="cancel-reply"
+        @click="handleCancelReply"
+      >
+        取消回复
+      </el-button>
+    </div>
+
+    <!-- 编辑区域 -->
+    <div class="editor-main">
       <el-input
         v-model="content"
         type="textarea"
         :rows="3"
         :maxlength="1000"
-        placeholder="写下你的观后感..."
-        show-word-limit
+        :show-word-limit="true"
         resize="none"
+        placeholder="写下你的评论..."
       />
-    </div>
-
-    <div class="editor-footer">
-      <div class="left-actions">
-        <div class="score-wrapper">
-          <span class="label">评分：</span>
-          <el-rate
-            v-model="score"
-            :max="10"
-            :low-threshold="4"
-            :high-threshold="8"
-            :colors="['#F56C6C', '#E6A23C', '#67C23A']"
-          />
-          <span class="score-value">{{ score }}分</span>
+      
+      <div class="editor-footer">
+        <div class="editor-options">
+          <el-checkbox 
+            v-if="!replyTo"
+            v-model="isPrivate"
+            class="private-check"
+          >
+            仅作者可见
+          </el-checkbox>
         </div>
         
-        <el-checkbox v-model="isPrivate">
-          <el-tooltip
-            content="开启后仅自己可见"
-            placement="top"
+        <div class="editor-actions">
+          <el-button @click="handleCancel">取消</el-button>
+          <el-button 
+            type="primary" 
+            :loading="submitting"
+            :disabled="!canSubmit"
+            @click="handleSubmit"
           >
-            <span>私密评论</span>
-          </el-tooltip>
-        </el-checkbox>
-      </div>
-      
-      <div class="right-actions">
-        <el-button @click="handleCancel">取消</el-button>
-        <el-button 
-          type="primary" 
-          :loading="submitting"
-          :disabled="!canSubmit"
-          @click="handleSubmit"
-        >发表评论</el-button>
+            发表评论
+          </el-button>
+        </div>
       </div>
     </div>
   </div>
 </template>
-
 
 <script>
 import { ref, computed } from 'vue'
@@ -74,69 +73,79 @@ export default {
   name: 'CommentEditor',
   props: {
     movieId: {
-      type: [String, Number],
+      type: [Number, String],
       required: true
     },
     replyTo: {
       type: Object,
       default: null
-    },
-    parentId: {
-      type: [String, Number],
-      default: null
     }
   },
-  emits: ['cancel', 'success'],
+  emits: ['success', 'cancel'],
   setup(props, { emit }) {
     const store = useStore()
     const content = ref('')
-    const score = ref(8)
+    const score = ref(0)
     const isPrivate = ref(false)
     const submitting = ref(false)
 
+    // 是否可以提交
     const canSubmit = computed(() => {
-      if (props.replyTo) {
-        return content.value.trim().length > 0
-      }
-      return content.value.trim().length > 0 && score.value > 0
+      if (!content.value.trim()) return false
+      if (!props.replyTo && score.value === 0) return false
+      return true
     })
 
-    const handleCancel = () => {
-      content.value = ''
-      score.value = 8
-      isPrivate.value = false
-      emit('cancel')
-    }
-
+    // 提交评论
     const handleSubmit = async () => {
       if (!canSubmit.value) return
 
-      submitting.value = true
       try {
+        submitting.value = true
         if (props.replyTo) {
-          // 发表回复
+          // 提交回复
           await store.dispatch('comment/addReply', {
-            parentId: props.parentId,
+            parentId: props.replyTo.id,
             content: content.value.trim(),
             replyTo: props.replyTo
           })
-          ElMessage.success('回复成功')
         } else {
-          // 发表评论
+          // 提交评论
           await store.dispatch('comment/addComment', {
             movieId: props.movieId,
             content: content.value.trim(),
             score: score.value,
             isPrivate: isPrivate.value
           })
-          ElMessage.success('评论成功')
         }
+        
+        ElMessage.success('发表成功')
+        resetForm()
         emit('success')
       } catch (error) {
-        ElMessage.error(error.message || '发表失败，请重试')
+        ElMessage.error(error.message || '发表失败')
       } finally {
         submitting.value = false
       }
+    }
+
+    // 取消
+    const handleCancel = () => {
+      resetForm()
+      emit('cancel')
+    }
+
+    // 取消回复
+    const handleCancelReply = () => {
+      resetForm()
+      emit('cancel')
+    }
+
+    // 重置表单
+    const resetForm = () => {
+      content.value = ''
+      score.value = 0
+      isPrivate.value = false
     }
 
     return {
@@ -145,8 +154,9 @@ export default {
       isPrivate,
       submitting,
       canSubmit,
+      handleSubmit,
       handleCancel,
-      handleSubmit
+      handleCancelReply
     }
   }
 }
@@ -155,100 +165,162 @@ export default {
 <style lang="scss" scoped>
 .comment-editor {
   padding: 20px;
-  margin-bottom: 30px;
-  background-color: var(--comment-editor-bg);
-  border: 1px solid var(--comment-editor-border);
   border-radius: 8px;
+  background: var(--comment-editor-bg);
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--comment-editor-border);
 
-  .editor-header {
+  .rating-section {
     display: flex;
     align-items: center;
-    margin-bottom: 20px;
+    gap: 12px;
+    margin-bottom: 16px;
 
-    .avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      margin-right: 12px;
+    .rating-label {
+      color: var(--comment-text);
+      font-size: 14px;
     }
 
-    .rating {
-      margin-left: auto;
+    .rating-stars {
+      flex: 1;
+    }
+
+    .rating-value {
+      min-width: 48px;
+      color: var(--el-color-warning);
+      font-size: 14px;
     }
   }
 
-  .editor-content {
-    .el-input__wrapper {
-      background-color: var(--input-bg-color);
+  .reply-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background: var(--comment-reply-bg);
+    border-radius: 4px;
+    color: var(--comment-text);
+    font-size: 14px;
+
+    .reply-name {
+      color: var(--el-color-primary);
+      font-weight: 500;
     }
 
-    .el-textarea__inner {
-      color: var(--text-color);
+    .cancel-reply {
+      margin-left: auto;
+      font-size: 13px;
+      color: var(--comment-action);
       
-      &::placeholder {
-        color: var(--text-color-light);
+      &:hover {
+        color: var(--comment-action-hover);
+      }
+    }
+  }
+
+  .editor-main {
+    .el-textarea {
+      :deep(.el-textarea__inner) {
+        background: var(--comment-bg);
+        border-color: var(--comment-editor-border);
+        color: var(--comment-text);
+        transition: all 0.3s;
+
+        &:hover, &:focus {
+          background: var(--comment-bg);
+          border-color: var(--el-color-primary);
+        }
+
+        &::placeholder {
+          color: var(--comment-text-light);
+        }
       }
     }
   }
 
   .editor-footer {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-top: 15px;
+    justify-content: space-between;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--comment-divider);
 
-    .left-actions {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-
-      .score-wrapper {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-
-        .label {
-          color: var(--text-color-light);
-        }
-
-        .score-value {
-          color: var(--text-color);
-          min-width: 40px;
-        }
+    .editor-options {
+      .private-check {
+        color: var(--comment-text);
+        font-size: 13px;
       }
     }
 
-    .right-actions {
+    .editor-actions {
       display: flex;
-      gap: 10px;
+      gap: 12px;
+
+      .el-button {
+        &:not(.el-button--primary) {
+          background: var(--comment-bg);
+          border-color: var(--comment-border);
+          color: var(--comment-text);
+
+          &:hover {
+            border-color: var(--el-color-primary);
+            color: var(--el-color-primary);
+          }
+        }
+      }
     }
   }
+}
 
-  .reply-info {
-    margin: -10px 0 15px;
-    padding: 8px 12px;
-    background-color: var(--comment-reply-bg);
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+// 响应式设计
+@media screen and (max-width: 768px) {
+  .comment-editor {
+    padding: 16px;
 
-    .reply-text {
-      color: var(--text-color-light);
-      font-size: 14px;
+    .rating-section {
+      flex-wrap: wrap;
+      gap: 8px;
 
-      .username {
-        color: var(--text-color);
-        font-weight: 500;
+      .rating-label {
+        width: 100%;
       }
     }
 
-    .cancel-reply {
-      color: var(--comment-action);
-      cursor: pointer;
+    .editor-footer {
+      flex-direction: column;
+      gap: 16px;
 
-      &:hover {
-        color: var(--comment-action-hover);
+      .editor-actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+    }
+  }
+}
+
+// 深色模式适配
+html[data-theme='dark'] {
+  .comment-editor {
+    background: var(--el-bg-color);
+    box-shadow: var(--el-box-shadow-dark);
+
+    .reply-info {
+      background: var(--el-color-primary-light-3);
+      color: var(--el-text-color-primary);
+    }
+
+    .editor-main {
+      .el-textarea {
+        :deep(.el-textarea__inner) {
+          background: var(--el-bg-color-overlay);
+          border-color: var(--el-border-color);
+
+          &:hover, &:focus {
+            background: var(--el-bg-color-overlay);
+          }
+        }
       }
     }
   }

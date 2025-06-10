@@ -55,9 +55,18 @@
         <div class="movie-info">
           <h1 class="title">{{ currentMovie?.title }}</h1>
           <div class="meta">
-            <span class="year">{{ currentMovie?.year }}</span>
-            <span class="quality">{{ currentMovie?.quality }}</span>
-            <span class="duration">{{ currentMovie?.duration }}</span>
+            <span>
+              <el-icon><Calendar /></el-icon>
+              {{ currentMovie?.year }}
+            </span>
+            <span>
+              <el-icon><VideoCamera /></el-icon>
+              {{ currentMovie?.quality }}
+            </span>
+            <span>
+              <el-icon><Timer /></el-icon>
+              {{ currentMovie?.duration }}
+            </span>
           </div>
           <div class="tags">
             <el-tag 
@@ -65,6 +74,7 @@
               :key="tag"
               class="tag"
               effect="plain"
+              size="small"
             >{{ tag }}</el-tag>
           </div>
           <p class="description">{{ currentMovie?.description }}</p>
@@ -72,7 +82,10 @@
 
         <!-- 评论区域 -->
         <div class="comments-section">
-          <h2 class="section-title">评论区</h2>
+          <h2 class="section-title">
+            <el-icon><ChatLineRound /></el-icon>
+            评论区
+          </h2>
           <template v-if="isLoggedIn">
             <comment-editor
               :movie-id="movieId"
@@ -102,7 +115,11 @@
 
       <!-- 相关推荐 -->
       <div class="sidebar">
-        <recommended-movies :movie-id="movieId" />
+        <related-movies
+          :movie-id="movieId"
+          :default-mode="'list'"
+          :limit="8"
+        />
       </div>
     </div>
   </div>
@@ -117,13 +134,16 @@ import {
   Loading,
   VideoPlay,
   Share,
-  ChatLineRound
+  ChatLineRound,
+  Calendar,
+  VideoCamera,
+  Timer
 } from '@element-plus/icons-vue'
 import { formatDistanceToNow } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import CommentEditor from '@/components/comment/CommentEditor.vue'
 import CommentList from '@/components/comment/CommentList.vue'
-import RecommendedMovies from '@/components/movie/RecommendedMovies.vue'
+import RelatedMovies from '@/components/movie/RelatedMovies.vue'
 import VideoAd from '@/components/video/VideoAd.vue'
 
 export default {
@@ -131,12 +151,15 @@ export default {
   components: {
     CommentEditor,
     CommentList,
-    RecommendedMovies,
+    RelatedMovies,
     VideoAd,
     Loading,
     VideoPlay,
     Share,
-    ChatLineRound
+    ChatLineRound,
+    Calendar,
+    VideoCamera,
+    Timer
   },
   setup() {
     const store = useStore()
@@ -630,15 +653,22 @@ export default {
 
 <style lang="scss" scoped>
 .movie-play {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 20px;
+
   .player-section {
     position: relative;
     background-color: #000;
-    margin: -20px -20px 20px;
+    margin: 0 -20px 20px;
     z-index: 1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 
     .player-wrapper {
       width: 100%;
-      padding-top: 56.25%; // 16:9 宽高比
+      max-width: 1200px;
+      margin: 0 auto;
+      padding-top: 42.85%; // 更改为 21:9 宽高比
       position: relative;
 
       .video-container {
@@ -648,6 +678,7 @@ export default {
         width: 100%;
         height: 100%;
         overflow: hidden;
+        background: #000;
 
         .video-player {
           position: absolute;
@@ -671,6 +702,15 @@ export default {
           color: #fff;
           text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
           z-index: 5;
+
+          .loading-icon {
+            animation: rotate 1s linear infinite;
+          }
+
+          span {
+            font-size: 14px;
+            opacity: 0.9;
+          }
         }
       }
     }
@@ -678,31 +718,38 @@ export default {
 
   .content-section {
     display: flex;
-    gap: 30px;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
 
     .main-content {
       flex: 1;
       min-width: 0;
 
       .movie-info {
-        margin-bottom: 30px;
-        padding: 20px;
-        background: var(--card-bg-color);
+        margin-bottom: 20px;
+        padding: 16px;
+        background: var(--movie-section-bg);
         border-radius: 8px;
-        box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+        box-shadow: var(--movie-section-shadow);
 
         .title {
-          margin: 0 0 15px;
-          font-size: 24px;
+          margin: 0 0 12px;
+          font-size: 20px;
           color: var(--text-color);
+          font-weight: 600;
         }
 
         .meta {
-          margin-bottom: 15px;
-          color: var(--text-color-secondary);
+          margin-bottom: 12px;
+          color: var(--text-color-light);
+          font-size: 14px;
 
           span {
-            margin-right: 20px;
+            margin-right: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
 
             &:last-child {
               margin-right: 0;
@@ -711,39 +758,51 @@ export default {
         }
 
         .tags {
-          margin-bottom: 15px;
+          margin-bottom: 12px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
 
           .tag {
-            margin-right: 10px;
-            margin-bottom: 10px;
+            margin: 0;
           }
         }
 
         .description {
           margin: 0;
-          color: var(--text-color-secondary);
+          color: var(--text-color-light);
           line-height: 1.6;
+          font-size: 14px;
         }
       }
 
       .comments-section {
-        padding: 20px;
-        background: var(--card-bg-color);
+        padding: 16px;
+        background: var(--movie-section-bg);
         border-radius: 8px;
-        box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+        box-shadow: var(--movie-section-shadow);
 
         .section-title {
-          margin: 0 0 20px;
-          font-size: 18px;
+          margin: 0 0 16px;
+          font-size: 16px;
           color: var(--text-color);
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .el-icon {
+            color: var(--el-color-primary);
+          }
         }
 
         .login-tip {
-          margin-bottom: 30px;
+          margin-bottom: 20px;
 
           .login-link {
             color: var(--el-color-primary);
             text-decoration: none;
+            font-weight: 500;
 
             &:hover {
               text-decoration: underline;
@@ -754,20 +813,80 @@ export default {
     }
 
     .sidebar {
-      width: 300px;
+      width: 280px;
       flex-shrink: 0;
     }
   }
 }
 
 // 响应式设计
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 1200px) {
   .movie-play {
+    padding: 0 16px;
+
     .player-section {
+      margin: 0 -16px 16px;
+
       .player-wrapper {
-        padding-top: 56.25%;
+        padding-top: 56.25%; // 在小屏幕上改回 16:9
       }
     }
+  }
+}
+
+@media screen and (max-width: 992px) {
+  .movie-play {
+    .content-section {
+      flex-direction: column;
+
+      .sidebar {
+        width: 100%;
+      }
+    }
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .movie-play {
+    padding: 0 12px;
+
+    .player-section {
+      margin: 0 -12px 12px;
+    }
+
+    .content-section {
+      gap: 16px;
+
+      .main-content {
+        .movie-info,
+        .comments-section {
+          padding: 12px;
+
+          .title {
+            font-size: 18px;
+          }
+
+          .meta {
+            font-size: 13px;
+            flex-wrap: wrap;
+            gap: 8px;
+
+            span {
+              margin-right: 12px;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 </style> 

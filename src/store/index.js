@@ -4,6 +4,7 @@ import movie from './modules/movie'
 import user from './modules/user'
 import comment from './modules/comment'
 import ad from './modules/ad'
+import category from './modules/category'
 
 export default createStore({
   state: {
@@ -14,9 +15,6 @@ export default createStore({
     },
     banners: [],
     theme: localStorage.getItem('theme') || 'light',
-    navMenu: {
-      isOpen: false
-    },
     advertisements: [],
     rankings: {
       hot: [],
@@ -32,7 +30,6 @@ export default createStore({
     recommendedMovies: state => state.movies.recommended,
     banners: state => state.banners,
     currentTheme: state => state.theme,
-    isMenuOpen: state => state.navMenu.isOpen,
     advertisements: state => state.advertisements,
     hotRankings: state => state.rankings.hot,
     scoreRankings: state => state.rankings.score,
@@ -55,12 +52,6 @@ export default createStore({
     SET_THEME(state, theme) {
       state.theme = theme
       localStorage.setItem('theme', theme)
-    },
-    TOGGLE_MENU(state) {
-      state.navMenu.isOpen = !state.navMenu.isOpen
-    },
-    SET_MENU_STATE(state, isOpen) {
-      state.navMenu.isOpen = isOpen
     },
     SET_ADVERTISEMENTS(state, ads) {
       state.advertisements = ads
@@ -144,6 +135,7 @@ export default createStore({
     movie,
     user,
     comment,
-    ad
+    ad,
+    category
   }
 })

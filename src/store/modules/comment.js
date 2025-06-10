@@ -85,15 +85,20 @@ export default {
           }
         })
 
-        // 分页
+        // 保存总数
+        const total = comments.length
+
+        // 分页 - 确保至少返回一条评论
         const start = (page - 1) * pageSize
-        const end = start + pageSize
+        const end = Math.max(start + pageSize, 1)
         const pagedComments = comments.slice(start, end)
 
         commit('SET_COMMENTS', {
           comments: pagedComments,
-          total: comments.length
+          total: total // 使用原始总数，而不是分页后的数量
         })
+
+        return { comments: pagedComments, total }
       } catch (error) {
         console.error('获取评论失败:', error)
         throw error
