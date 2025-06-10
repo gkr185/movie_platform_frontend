@@ -112,24 +112,26 @@ export default {
       
       try {
         loading.value = true
-        let movies = []
-        
-        if (props.currentMovie?.category) {
-          // 通过分类获取相关电影
-          movies = await store.dispatch('movie/fetchMoviesByCategory', {
-            category: props.currentMovie.category,
-            excludeId: id,
-            limit: props.limit
-          }) || []
-        } else {
-          // 通过推荐算法获取相关电影
-          movies = await store.dispatch('movie/fetchRecommendedMovies', {
-            movieId: id,
-            limit: props.limit
-          }) || []
+        // 获取电影分类
+        const categories = await store.dispatch('category/fetchMovieCategories', id)
+        if (!categories || categories.length === 0) {
+          console.warn('未找到电影分类')
+          relatedMovies.value = []
+          return
         }
+
+        // 使用第一个分类来获取相关电影
+        const mainCategory = categories[0]
+        console.log('使用分类获取相关电影:', mainCategory)
         
-        relatedMovies.value = movies
+        // 通过分类ID获取相关电影
+        const movies = await store.dispatch('movie/fetchMoviesByCategory', mainCategory.id)
+        
+        // 过滤掉当前电影并限制数量
+        relatedMovies.value = (movies || [])
+          .filter(movie => movie.id !== id)
+          .slice(0, props.limit)
+        console.log('获取到的相关电影:', relatedMovies.value)
       } catch (error) {
         console.error('获取相关电影失败:', error)
         relatedMovies.value = []

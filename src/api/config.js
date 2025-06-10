@@ -9,5 +9,7 @@ export const API_URLS = {
   // 电影相关接口
   MOVIE: {
     DETAIL: '/api/movies/{movieId}', // 获取电影详情
+    BY_CATEGORY: '/api/movies/categories/{categoryId}',
+    CATEGORIES: '/api/movies/getCategories/{movieId}'
   }
 } 

@@ -1,5 +1,5 @@
 import { ElMessage } from 'element-plus'
-import { getMovieDetail } from '@/api/movie'
+import { getMovieDetail, getMoviesByCategory } from '@/api/movie'
 
 const state = {
   currentMovie: null,
@@ -107,11 +107,19 @@ const actions = {
   },
 
   // 根据分类获取相关电影
-  async fetchMoviesByCategory({ commit, dispatch }, { category, excludeId, limit = 6 }) {
+  async fetchMoviesByCategory({ commit, getters }, categoryId) {
     try {
-      // 临时返回空数组，等待API实现
-      // TODO: 实现获取相关电影的API
-      return []
+      if (!categoryId) {
+        console.warn('未提供分类ID')
+        return []
+      }
+      
+      const movies = await getMoviesByCategory(categoryId)
+      if (!movies) return []
+      
+      // 转换API数据为前端所需格式
+      const formattedMovies = movies.map(movie => getters.movieDisplayData(movie))
+      return formattedMovies
     } catch (error) {
       console.error('获取相关电影失败:', error)
       return []

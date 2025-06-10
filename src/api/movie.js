@@ -22,6 +22,19 @@ export const getMovieDetail = async (movieId) => {
   }
 }
 
+// 按分类搜索电影
+export const getMoviesByCategory = async (categoryId) => {
+  try {
+    const url = API_URLS.MOVIE.BY_CATEGORY.replace('{categoryId}', categoryId)
+    const response = await movieApi.get(url)
+    return response.data
+  } catch (error) {
+    console.error('按分类搜索电影失败:', error.message)
+    throw error
+  }
+}
+
 export default {
-  getMovieDetail
+  getMovieDetail,
+  getMoviesByCategory
 } 
