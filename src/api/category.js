@@ -73,16 +73,31 @@ export function getCategoryMovies(categoryId, params = {}) {
     return Promise.reject(new Error('无效的分类ID'))
   }
 
+  console.log('发起获取分类电影请求:', {
+    categoryId,
+    params,
+    url: API_URLS.MOVIE.BY_CATEGORY.replace('{categoryId}', Number(categoryId))
+  })
+
   return movieApi.get(API_URLS.MOVIE.BY_CATEGORY.replace('{categoryId}', Number(categoryId)), {
     params: {
       ...params,
       status: 1
     }
-  }).then(response => response.data)
-    .catch(error => {
-      console.error(`获取分类${categoryId}的电影列表失败:`, error)
-      throw error
-    })
+  }).then(response => {
+    console.log('获取分类电影API原始响应:', response)
+    return response.data
+  })
+  .catch(error => {
+    console.error(`获取分类${categoryId}的电影列表失败:`, error)
+    console.error('请求配置:', error.config)
+    if (error.response) {
+      console.error('响应数据:', error.response.data)
+      console.error('响应状态:', error.response.status)
+      console.error('响应头:', error.response.headers)
+    }
+    throw error
+  })
 }
 
 // 获取电影的分类信息

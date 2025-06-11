@@ -81,12 +81,43 @@ const actions = {
     try {
       const { page = state.pagination.page, size = state.pagination.size } = params
       const response = await getCategoryMovies(categoryId, { page, size, ...params })
-      const { list, total } = response.data
-      commit('SET_CATEGORY_MOVIES', { list, total })
+      
+      console.log('获取分类电影API响应:', {
+        response,
+        responseData: response.data,
+        categoryId,
+        params
+      })
+
+      // 处理返回的数组数据
+      const list = Array.isArray(response) ? response : []
+      const total = list.length
+
+      // 转换数据格式以匹配 MovieCard 组件的需求
+      const formattedList = list.map(movie => ({
+        id: movie.id,
+        title: movie.title || '',
+        description: movie.description || '',
+        cover: movie.poster_url || movie.posterUrl || '',
+        score: movie.rating || 0,
+        year: movie.release_year || (movie.release_date ? new Date(movie.release_date).getFullYear() : ''),
+        quality: movie.quality || '',
+        isVip: movie.is_vip === 1 || movie.isVip || false
+      }))
+
+      commit('SET_CATEGORY_MOVIES', { list: formattedList, total })
       commit('SET_PAGINATION', { page, size })
-      return list
+      return formattedList
     } catch (error) {
       console.error('获取分类电影失败:', error)
+      console.error('错误详情:', {
+        error,
+        stack: error.stack,
+        categoryId,
+        params
+      })
+      // 出错时设置空列表
+      commit('SET_CATEGORY_MOVIES', { list: [], total: 0 })
       throw error
     }
   },
