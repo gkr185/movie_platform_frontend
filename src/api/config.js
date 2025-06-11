@@ -8,6 +8,7 @@ export const TIMEOUT = 15000
 export const API_URLS = {
   // 电影相关接口
   MOVIE: {
+    LIST: '/api/movies', // 获取电影列表
     DETAIL: '/api/movies/{movieId}', // 获取电影详情
     BY_CATEGORY: '/api/movies/categories/{categoryId}', // 按分类搜索电影
     CATEGORIES: '/api/movies/getCategories/{movieId}', // 获取电影的所有分类
@@ -20,8 +21,8 @@ export const API_URLS = {
   // 分类相关接口
   CATEGORY: {
     LIST: '/api/categories', // 获取所有分类
-    MOVIES: '/api/movies/categories/{categoryId}', // 获取分类下的电影
-    MOVIE_CATEGORIES: '/api/movies/getCategories/{movieId}' // 获取电影的分类
+    TREE: '/api/categories/tree', // 获取分类树结构
+    DETAIL: '/api/categories/{categoryId}', // 获取分类详情
   },
   // 用户相关接口
   USER: {

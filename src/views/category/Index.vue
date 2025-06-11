@@ -65,14 +65,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
-import { Picture } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MovieCard from '@/components/movie/MovieCard.vue'
+import { getCategoryTree, getCategoryDetail, getCategoryMovies } from '@/api/category'
 
 export default {
   name: 'CategoryPage',
   components: {
-    Picture,
     MovieCard
   },
   setup() {
@@ -83,31 +82,29 @@ export default {
     const moviesLoading = ref(false)
     const categories = ref([])
     const currentCategory = ref(null)
-    const movies = computed(() => store.state.category.categoryMovies)
-    const total = computed(() => store.state.category.pagination.total)
+    const movies = ref([])
+    const total = ref(0)
     const page = ref(1)
     const size = ref(10)
-
-    // 分页选项
     const pageSizes = [10, 20, 30, 50]
 
     // 全部分类选项
     const allCategory = {
-      id: 'all',
+      categoryId: 'all',
       name: '全部',
       description: '显示所有电影',
       parentId: null,
-      sortOrder: -1,
-      status: 1
+      movieCount: 0
     }
 
-    // 获取所有分类
+    // 获取分类树
     const fetchCategories = async () => {
       loading.value = true
       try {
-        const result = await store.dispatch('category/fetchCategories')
-        // 添加"全部"选项到分类列表开头
-        categories.value = [allCategory, ...(result || [])]
+        const { data } = await getCategoryTree()
+        // 将树形结构扁平化并添加"全部"选项
+        const flattenCategories = flattenCategoryTree(data)
+        categories.value = [allCategory, ...flattenCategories]
         // 默认选择"全部"分类
         await selectCategory(categories.value[0])
       } catch (error) {
@@ -116,6 +113,27 @@ export default {
       } finally {
         loading.value = false
       }
+    }
+
+    // 扁平化分类树
+    const flattenCategoryTree = (tree) => {
+      const result = []
+      const traverse = (nodes) => {
+        nodes.forEach(node => {
+          result.push({
+            categoryId: node.categoryId,
+            name: node.name,
+            description: node.description,
+            parentId: node.parentId,
+            movieCount: node.movieCount
+          })
+          if (node.children && node.children.length > 0) {
+            traverse(node.children)
+          }
+        })
+      }
+      traverse(tree)
+      return result
     }
 
     // 选择分类
@@ -127,6 +145,16 @@ export default {
       
       currentCategory.value = category
       page.value = 1 // 切换分类时重置页码
+      
+      if (category.categoryId !== 'all') {
+        try {
+          const { data } = await getCategoryDetail(category.categoryId)
+          currentCategory.value = { ...currentCategory.value, ...data }
+        } catch (error) {
+          console.error('获取分类详情失败:', error)
+        }
+      }
+      
       await fetchCategoryMovies()
     }
 
@@ -139,26 +167,20 @@ export default {
       
       moviesLoading.value = true
       try {
-        // 如果选择的是"全部"分类，使用不同的API调用
-        if (currentCategory.value.id === 'all') {
-          await store.dispatch('category/fetchAllMovies', {
-            params: {
-              page: page.value,
-              size: size.value
-            }
-          })
-        } else {
-          await store.dispatch('category/fetchCategoryMovies', {
-            categoryId: currentCategory.value.id,
-            params: {
-              page: page.value,
-              size: size.value
-            }
-          })
-        }
+        const { data } = await getCategoryMovies(
+          currentCategory.value.categoryId === 'all' ? null : currentCategory.value.categoryId,
+          {
+            page: page.value,
+            size: size.value
+          }
+        )
+        movies.value = data.list
+        total.value = data.total
       } catch (error) {
         console.error('获取分类电影失败:', error)
         ElMessage.error('获取分类电影失败')
+        movies.value = []
+        total.value = 0
       } finally {
         moviesLoading.value = false
       }
