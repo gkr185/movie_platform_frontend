@@ -59,7 +59,7 @@
 </template>
 
 <script>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -79,31 +79,24 @@ export default {
       password: ''
     })
 
+    // 从本地存储加载记住的用户名
+    onMounted(() => {
+      const rememberedUsername = localStorage.getItem('rememberedUsername')
+      if (rememberedUsername) {
+        loginForm.username = rememberedUsername
+        rememberMe.value = true
+      }
+    })
+
     // 表单验证规则
     const rules = {
       username: [
-        { 
-          required: true, 
-          message: '请输入用户名', 
-          trigger: 'blur' 
-        },
-        { 
-          min: 3, 
-          message: '用户名长度不能小于3位', 
-          trigger: 'blur' 
-        }
+        { required: true, message: '请输入用户名', trigger: 'blur' },
+        { min: 3, message: '用户名长度不能小于3位', trigger: 'blur' }
       ],
       password: [
-        { 
-          required: true, 
-          message: '请输入密码', 
-          trigger: 'blur' 
-        },
-        { 
-          min: 6, 
-          message: '密码长度不能小于6位', 
-          trigger: 'blur' 
-        }
+        { required: true, message: '请输入密码', trigger: 'blur' },
+        { min: 6, message: '密码长度不能小于6位', trigger: 'blur' }
       ]
     }
 
@@ -114,7 +107,19 @@ export default {
         const valid = await loginFormRef.value.validate()
         if (valid) {
           loading.value = true
+          
+          // 处理记住用户名
+          if (rememberMe.value) {
+            localStorage.setItem('rememberedUsername', loginForm.username)
+          } else {
+            localStorage.removeItem('rememberedUsername')
+          }
+
           await store.dispatch('user/login', loginForm)
+          
+          // 确保用户信息已加载
+          await store.dispatch('user/getUserInfo')
+          
           ElMessage.success('登录成功')
           
           // 检查是否有重定向地址
@@ -122,11 +127,25 @@ export default {
           if (redirect && !redirect.includes('/user/login')) {
             router.push(redirect)
           } else {
-            router.push('/') // 默认跳转到主页
+            router.push('/')
           }
         }
       } catch (error) {
-        ElMessage.error(error.message || '登录失败，请重试')
+        console.error('登录错误:', error)
+        if (error.response) {
+          const { status, data } = error.response
+          if (status === 401) {
+            ElMessage.error('用户名或密码错误')
+          } else if (data && data.message) {
+            ElMessage.error(data.message)
+          } else {
+            ElMessage.error('登录失败，请重试')
+          }
+        } else if (error.message) {
+          ElMessage.error(error.message)
+        } else {
+          ElMessage.error('网络错误，请检查网络连接')
+        }
       } finally {
         loading.value = false
       }

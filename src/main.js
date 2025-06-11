@@ -15,6 +15,11 @@ app.component('Close', Close)
 app.component('Sunny', Sunny)
 app.component('Moon', Moon)
 
+// 初始化用户状态
+if (store.getters['user/token']) {
+  store.dispatch('user/initUserState')
+}
+
 app.use(store)
 app.use(router)
 app.use(ElementPlus)

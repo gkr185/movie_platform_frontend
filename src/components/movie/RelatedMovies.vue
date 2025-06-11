@@ -106,14 +106,19 @@ export default {
     const fetchRelatedMovies = async () => {
       const id = props.movieId || props.currentMovie?.id
       if (!id) {
+        console.warn('未提供电影ID')
         relatedMovies.value = []
         return
       }
       
       try {
         loading.value = true
+        console.log('开始获取电影分类，电影ID:', id)
+        
         // 获取电影分类
         const categories = await store.dispatch('category/fetchMovieCategories', id)
+        console.log('获取到的分类数据:', categories)
+        
         if (!categories || categories.length === 0) {
           console.warn('未找到电影分类')
           relatedMovies.value = []
@@ -124,14 +129,36 @@ export default {
         const mainCategory = categories[0]
         console.log('使用分类获取相关电影:', mainCategory)
         
+        if (!mainCategory.id) {
+          console.warn('分类ID无效:', mainCategory)
+          relatedMovies.value = []
+          return
+        }
+        
         // 通过分类ID获取相关电影
+        console.log('开始获取分类电影，分类ID:', mainCategory.id)
         const movies = await store.dispatch('movie/fetchMoviesByCategory', mainCategory.id)
+        console.log('分类电影原始数据:', movies)
+        
+        if (!movies || !Array.isArray(movies)) {
+          console.warn('获取到的电影数据无效:', movies)
+          relatedMovies.value = []
+          return
+        }
         
         // 过滤掉当前电影并限制数量
-        relatedMovies.value = (movies || [])
-          .filter(movie => movie.id !== id)
+        relatedMovies.value = movies
+          .filter(movie => movie && movie.id && movie.id !== Number(id))
           .slice(0, props.limit)
-        console.log('获取到的相关电影:', relatedMovies.value)
+          .map(movie => ({
+            id: movie.id,
+            title: movie.title || '',
+            cover: movie.cover || movie.posterUrl || '',
+            score: movie.score || movie.rating || 0,
+            year: movie.year || (movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : '未知')
+          }))
+        
+        console.log('处理后的相关电影:', relatedMovies.value)
       } catch (error) {
         console.error('获取相关电影失败:', error)
         relatedMovies.value = []

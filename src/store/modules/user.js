@@ -1,12 +1,23 @@
 import { mockUsers, registeredUsers } from '../data'
+import { 
+  login, 
+  getUserInfo, 
+  register, 
+  updateUserInfo, 
+  updateUserSettings,
+  changePassword 
+} from '@/api/user'
+import { getToken, setToken, removeToken } from '@/utils/auth'
 
 export default {
   namespaced: true,
   
   state: {
     user: JSON.parse(localStorage.getItem('user')) || null,
-    token: localStorage.getItem('token') || '',
-    isLoggedIn: false,
+    token: getToken(),
+    userId: null,
+    userInfo: null,
+    isLoggedIn: !!getToken(),
     isVIP: false,
     userSettings: null,
     watchHistory: [],
@@ -14,19 +25,55 @@ export default {
     searchHistory: JSON.parse(localStorage.getItem('searchHistory')) || [],
     vipPlans: [],
     watchStats: null,
-    watchPreferences: null
+    watchPreferences: null,
+    vipExpireTime: null
   },
 
   mutations: {
     SET_TOKEN(state, token) {
       state.token = token
-      localStorage.setItem('token', token)
+      state.isLoggedIn = !!token
+      setToken(token)
+    },
+
+    SET_USER_ID(state, userId) {
+      state.userId = userId
+    },
+
+    SET_USER_INFO(state, userInfo) {
+      state.userInfo = userInfo
+      state.isLoggedIn = true
+      state.userSettings = userInfo.settings || null
+      state.isVIP = userInfo.isVip === 1
+      state.vipExpireTime = userInfo.vipExpireTime
+    },
+
+    SET_VIP_STATUS(state, { isVip, vip_expire_time }) {
+      state.isVIP = isVip === 1
+      state.vipExpireTime = vip_expire_time
+      if (state.userInfo) {
+        state.userInfo.is_vip = isVip
+        state.userInfo.vip_expire_time = vip_expire_time
+      }
+    },
+
+    CLEAR_USER_STATE(state) {
+      state.token = null
+      state.userId = null
+      state.userInfo = null
+      state.isLoggedIn = false
+      state.isVIP = false
+      state.vipExpireTime = null
+      state.userSettings = null
+      state.watchHistory = []
+      state.favorites = []
+      removeToken()
     },
 
     SET_USER(state, user) {
       state.user = user
       state.isLoggedIn = !!user
-      state.isVIP = user?.vip || false
+      state.isVIP = user?.is_vip === 1
       if (user) {
         localStorage.setItem('user', JSON.stringify(user))
         state.userSettings = user.settings
@@ -156,94 +203,89 @@ export default {
   },
 
   actions: {
-    async login({ commit }, credentials) {
+    async register({ commit, dispatch }, userInfo) {
       try {
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        const user = registeredUsers.get(credentials.username)
-        
-        if (!user) {
-          throw new Error('用户不存在')
-        }
-        
-        if (user.password !== credentials.password) {
-          throw new Error('密码错误')
-        }
-
-        const token = btoa(user.username + ':' + new Date().getTime())
-        
-        const userInfo = { ...user }
-        delete userInfo.password
+        const response = await register(userInfo)
+        const { token, id } = response.data
         
         commit('SET_TOKEN', token)
-        commit('SET_USER', userInfo)
+        commit('SET_USER_ID', id)
         
-        return { token, user: userInfo }
+        await dispatch('getUserInfo')
+        
+        return response
       } catch (error) {
         throw error
       }
     },
 
-    async register({ commit }, userData) {
+    async login({ commit, dispatch }, userInfo) {
       try {
-        await new Promise(resolve => setTimeout(resolve, 500))
+        const { username, password } = userInfo
+        const response = await login({ username: username.trim(), password })
+        const { token, id } = response.data
         
-        if (registeredUsers.has(userData.username)) {
-          throw new Error('用户名已存在')
+        commit('SET_TOKEN', token)
+        commit('SET_USER_ID', id)
+        
+        await dispatch('getUserInfo')
+        
+        return response
+      } catch (error) {
+        commit('CLEAR_USER_STATE')
+        throw error
+      }
+    },
+
+    async getUserInfo({ commit, state }) {
+      try {
+        if (!state.userId) {
+          throw new Error('用户ID不存在')
         }
+        const response = await getUserInfo(state.userId)
+        const userInfo = response.data
+        console.log('API返回的用户信息:', response)
+        console.log('解析后的用户信息:', userInfo)
         
-        const emailExists = Array.from(registeredUsers.values()).some(
-          user => user.email === userData.email
-        )
-        if (emailExists) {
-          throw new Error('邮箱已被使用')
-        }
+        commit('SET_USER_INFO', userInfo)
         
-        const newUser = {
-          id: registeredUsers.size + 1,
-          username: userData.username,
-          password: userData.password,
-          name: userData.username,
-          email: userData.email,
-          avatar: '',
-          vip: false,
-          watchHistory: [],
-          favorites: [],
-          settings: {
-            theme: 'light',
-            playbackQuality: '1080p',
-            autoPlay: true,
-            notifications: true
-          }
-        }
-        
-        registeredUsers.set(userData.username, newUser)
-        
-        return { success: true }
+        return response
+      } catch (error) {
+        commit('CLEAR_USER_STATE')
+        throw error
+      }
+    },
+
+    async updateUserSettings({ commit, state }, settings) {
+      try {
+        const response = await updateUserSettings(state.userId, settings)
+        commit('SET_USER_INFO', response.data)
+        return response
       } catch (error) {
         throw error
       }
     },
 
-    async logout({ commit }) {
+    async changePassword({ state }, passwordData) {
       try {
-        await new Promise(resolve => setTimeout(resolve, 300))
-        commit('LOGOUT')
-        document.documentElement.setAttribute('data-theme', 'light')
-        return { success: true }
+        await changePassword(state.userId, passwordData)
       } catch (error) {
         throw error
       }
     },
 
-    async updateUserSettings({ commit }, settings) {
+    async updateUserInfo({ commit, state }, userData) {
       try {
-        await new Promise(resolve => setTimeout(resolve, 300))
-        commit('UPDATE_USER_SETTINGS', settings)
+        const response = await updateUserInfo(state.userId, userData)
+        commit('SET_USER_INFO', response.data)
+        return response
       } catch (error) {
-        console.error('更新用户设置失败:', error)
         throw error
       }
+    },
+
+    logout({ commit }) {
+      commit('CLEAR_USER_STATE')
     },
 
     async addToHistory({ commit }, { movie, progress }) {
@@ -428,6 +470,14 @@ export default {
         console.error('购买VIP失败:', error)
         throw error
       }
+    },
+
+    initUserState({ dispatch, state }) {
+      if (state.token && !state.userInfo) {
+        return dispatch('getUserInfo').catch(() => {
+          dispatch('logout')
+        })
+      }
     }
   },
 
@@ -444,6 +494,9 @@ export default {
     userAvatar: state => state.user?.avatar || '',
     vipPlans: state => state.vipPlans,
     watchStats: state => state.watchStats,
-    watchPreferences: state => state.watchPreferences
+    watchPreferences: state => state.watchPreferences,
+    token: state => state.token,
+    userInfo: state => state.userInfo,
+    userId: state => state.userId
   }
 } 

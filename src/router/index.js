@@ -79,6 +79,18 @@ const routes = [
         meta: { requiresAuth: true }
       },
       {
+        path: 'update-profile',
+        name: 'UpdateProfile',
+        component: () => import('@/views/user/UpdateProfile.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'change-password',
+        name: 'ChangePassword',
+        component: () => import('@/views/user/ChangePassword.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
         path: 'history',
         name: 'UserHistory',
         component: () => import('@/views/user/History.vue'),
@@ -104,6 +116,24 @@ const routes = [
       }
     ]
   },
+  {
+    path: '/newest',
+    name: 'Newest',
+    component: () => import('@/views/Newest.vue'),
+    meta: {
+      title: '最新上映',
+      requiresAuth: false
+    }
+  },
+  {
+    path: '/category',
+    name: 'Category',
+    component: () => import('@/views/category/Index.vue'),
+    meta: {
+      title: '电影分类',
+      keepAlive: true
+    }
+  },
   // 添加404路由
   {
     path: '/:pathMatch(.*)*',
@@ -118,9 +148,27 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const requiresGuest = to.matched.some(record => record.meta.requiresGuest)
+  
+  // 初始化用户状态
+  if (store.getters['user/token'] && !store.getters['user/userInfo']) {
+    try {
+      await store.dispatch('user/initUserState')
+    } catch (error) {
+      console.error('初始化用户状态失败:', error)
+      // 如果初始化失败，且目标路由需要认证，则跳转到登录页
+      if (requiresAuth) {
+        next({
+          path: '/user/login',
+          query: { redirect: to.fullPath }
+        })
+        return
+      }
+    }
+  }
+
   const isLoggedIn = store.getters['user/isLoggedIn']
 
   if (requiresAuth && !isLoggedIn) {

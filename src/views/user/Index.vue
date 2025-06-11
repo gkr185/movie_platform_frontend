@@ -17,7 +17,7 @@
                 <p v-if="isLoggedIn" :class="{ 'vip-text': isVIP }">
                   {{ isVIP ? 'VIP会员' : '普通用户' }}
                   <el-tag v-if="isVIP" size="small" type="warning">
-                    {{ vipExpireDate ? `到期时间：${formatDate(vipExpireDate)}` : 'VIP' }}
+                    {{ vipExpireTime ? `到期时间：${formatDate(vipExpireTime)}` : 'VIP' }}
                   </el-tag>
                 </p>
               </div>
@@ -50,7 +50,15 @@
               <template v-else>
                 <el-menu-item index="/user/profile">
                   <el-icon><User /></el-icon>
-                  <template #title>个人资料</template>
+                  <span>个人资料</span>
+                </el-menu-item>
+                <el-menu-item index="/user/update-profile">
+                  <el-icon><Edit /></el-icon>
+                  <span>修改资料</span>
+                </el-menu-item>
+                <el-menu-item index="/user/change-password">
+                  <el-icon><Lock /></el-icon>
+                  <span>修改密码</span>
                 </el-menu-item>
                 <el-menu-item index="/user/vip">
                   <el-icon><Trophy /></el-icon>
@@ -102,12 +110,12 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import { useRoute, useRouter } from 'vue-router'
 import { 
   User, UserFilled, Trophy, Star, Timer, 
-  DataLine, Fold, Expand, Plus, SwitchButton 
+  DataLine, Fold, Expand, Plus, SwitchButton, Edit, Lock 
 } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 
@@ -115,20 +123,41 @@ export default {
   name: 'UserCenter',
   components: {
     User, UserFilled, Trophy, Star, Timer, 
-    DataLine, Fold, Expand, Plus, SwitchButton
+    DataLine, Fold, Expand, Plus, SwitchButton, Edit, Lock
   },
   setup() {
     const store = useStore()
     const route = useRoute()
     const router = useRouter()
     const isCollapse = ref(false)
+    const loading = ref(false)
 
-    const username = computed(() => store.state.user.name || '未登录')
-    const userAvatar = computed(() => store.state.user.avatar || '')
+    // 从store获取用户信息
+    const userInfo = computed(() => store.getters['user/userInfo'])
+    const username = computed(() => userInfo.value?.username || '未登录')
+    const userAvatar = computed(() => userInfo.value?.avatar || '')
     const isVIP = computed(() => store.getters['user/isVIP'])
-    const vipExpireDate = computed(() => store.getters['user/vipExpireDate'])
+    const vipExpireTime = computed(() => store.getters['user/vipExpireTime'])
     const activeMenu = computed(() => route.path)
     const isLoggedIn = computed(() => store.getters['user/isLoggedIn'])
+
+    // 加载用户信息
+    const loadUserInfo = async () => {
+      if (isLoggedIn.value && !userInfo.value) {
+        try {
+          loading.value = true
+          await store.dispatch('user/getUserInfo')
+        } catch (error) {
+          console.error('获取用户信息失败:', error)
+          // 如果获取用户信息失败，可能是token过期，需要重新登录
+          if (error.response && error.response.status === 401) {
+            await handleLogout(true)
+          }
+        } finally {
+          loading.value = false
+        }
+      }
+    }
 
     const toggleCollapse = () => {
       isCollapse.value = !isCollapse.value
@@ -147,34 +176,44 @@ export default {
       return new Date(date).toLocaleDateString()
     }
 
-    const handleLogout = async () => {
+    const handleLogout = async (silent = false) => {
       try {
-        await ElMessageBox.confirm(
-          '确定要退出登录吗？',
-          '提示',
-          {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning'
-          }
-        )
+        if (!silent) {
+          await ElMessageBox.confirm(
+            '确定要退出登录吗？',
+            '提示',
+            {
+              confirmButtonText: '确定',
+              cancelButtonText: '取消',
+              type: 'warning'
+            }
+          )
+        }
         await store.dispatch('user/logout')
         router.push('/')
-        ElMessage.success('已成功退出登录')
+        if (!silent) {
+          ElMessage.success('已成功退出登录')
+        }
       } catch (error) {
-        if (error !== 'cancel') {
+        if (error !== 'cancel' && !silent) {
           ElMessage.error('退出登录失败，请重试')
         }
       }
     }
 
+    // 组件挂载时加载用户信息
+    onMounted(() => {
+      loadUserInfo()
+    })
+
     return {
       username,
       userAvatar,
       isVIP,
-      vipExpireDate,
+      vipExpireTime,
       activeMenu,
       isCollapse,
+      loading,
       toggleCollapse,
       handleSelect,
       formatDate,

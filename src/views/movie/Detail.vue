@@ -211,9 +211,8 @@ export default {
     })
     const movieCategories = computed(() => {
       if (!movie.value) return []
-      const categories = store.getters['category/getMovieCategories'](movie.value.id)
-      console.log('Detail组件获取到的分类:', categories)
-      return categories || []
+      // 直接从store中获取当前电影的分类
+      return store.state.category.categories
     })
     
     // 播放器配置
@@ -231,12 +230,19 @@ export default {
       try {
         loading.value = true
         const id = route.params.id
+        console.log('开始获取电影详情，ID:', id)
+        
         const movieData = await store.dispatch('movie/fetchMovieDetail', id)
+        console.log('获取到的电影详情:', movieData)
+        
         if (movieData) {
           movie.value = movieData
-          // 获取电影分类
+          // 获取电影分类并存储到store中
+          console.log('开始获取电影分类')
           const categories = await store.dispatch('category/fetchMovieCategories', id)
-          console.log('Detail组件获取到的分类数据:', categories)
+          console.log('获取到的分类数据:', categories)
+          // 更新store中的分类数据
+          store.commit('category/SET_CATEGORIES', { list: categories })
         } else {
           ElMessage.error('电影信息不存在')
           router.push('/404')

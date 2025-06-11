@@ -197,7 +197,7 @@ export const mockUsers = {
     password: '123123',
     name: '测试用户',
     avatar:  '/uploads/avatars/avatar.jpg',
-    email: 'test@example.com',
+    email: 'test123@example.com',
     vip: true,
     vipExpireDate: '2024-12-31',
     watchHistory: [

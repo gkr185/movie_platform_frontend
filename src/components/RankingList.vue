@@ -1,221 +1,264 @@
 <template>
   <div class="ranking-list">
-    <div v-for="(item, index) in rankingList" :key="item.id" class="ranking-item">
-      <div class="rank-number" :class="{ 'top3': index < 3 }">
-        {{ item.rank }}
-      </div>
-      <div class="movie-poster">
-        <img :src="item.poster" :alt="item.title">
-        <div class="hover-info">
-          <el-button type="primary" size="small" @click="playMovie(item.id)">
-            立即观看
-          </el-button>
+    <el-skeleton :loading="loading" animated :count="10" v-if="loading">
+      <template #template>
+        <div class="movie-item skeleton">
+          <el-skeleton-item variant="image" style="width: 120px; height: 160px" />
+          <div class="movie-info">
+            <el-skeleton-item variant="text" style="width: 50%" />
+            <el-skeleton-item variant="text" style="width: 30%" />
+          </div>
         </div>
+      </template>
+    </el-skeleton>
+
+    <template v-else>
+      <div v-if="!list || list.length === 0" class="empty-list">
+        <el-empty description="暂无排行数据" />
       </div>
-      <div class="movie-info">
-        <h3 class="movie-title" @click="viewDetail(item.id)">{{ item.title }}</h3>
-        <div class="movie-score">
-          <template v-if="type === 'hot'">
-            <i class="el-icon-hot-water"></i>
-            热度: {{ item.hot }}
-          </template>
-          <template v-else>
-            <el-rate
-              v-model="item.score"
-              disabled
-              show-score
-              text-color="#ff9900"
-              score-template="{value}"
+      
+      <div v-else class="movie-list">
+        <router-link
+          v-for="movie in list"
+          :key="movie.id"
+          :to="{ name: 'MovieDetail', params: { id: movie.id }}"
+          class="movie-item"
+        >
+          <!-- 排名 -->
+          <div class="rank" :class="{ 'top-3': movie.rank <= 3 }">
+            {{ movie.rank }}
+          </div>
+          
+          <!-- 电影封面 -->
+          <div class="movie-cover">
+            <el-image
+              :src="movie.cover"
+              fit="cover"
+              loading="lazy"
+              :alt="movie.title"
             >
-            </el-rate>
-          </template>
-        </div>
-        <div class="rank-change">
-          <i 
-            :class="[
-              item.change > 0 ? 'el-icon-top' : item.change < 0 ? 'el-icon-bottom' : 'el-icon-minus',
-              item.change > 0 ? 'up' : item.change < 0 ? 'down' : 'same'
-            ]"
-          ></i>
-          <span>{{ Math.abs(item.change) || '持平' }}</span>
-        </div>
+              <template #error>
+                <div class="image-error">
+                  <el-icon><Picture /></el-icon>
+                </div>
+              </template>
+            </el-image>
+            
+            <!-- VIP标签 -->
+            <div v-if="movie.needVip" class="vip-tag">
+              <el-tag size="small" type="warning">VIP</el-tag>
+            </div>
+          </div>
+          
+          <!-- 电影信息 -->
+          <div class="movie-info">
+            <h3 class="title" :title="movie.title">{{ movie.title }}</h3>
+            
+            <div class="score">
+              <el-rate
+                :model-value="movie.score"
+                disabled
+                text-color="#ff9900"
+                score-template="{value}"
+                :show-score="true"
+              />
+            </div>
+            
+            <div class="meta">
+              <span class="year">{{ movie.year }}</span>
+              <span class="separator">·</span>
+              <span class="category">{{ movie.category }}</span>
+            </div>
+            
+            <div class="stats">
+              <span v-if="type === 'hot'" class="plays">
+                <el-icon><VideoPlay /></el-icon>
+                {{ formatNumber(movie.playCount) }}
+              </span>
+              <span v-else class="rating">
+                <el-icon><Star /></el-icon>
+                {{ movie.rating }}
+              </span>
+            </div>
+          </div>
+        </router-link>
       </div>
-      <div class="actions">
-        <el-button type="text" @click="addToFavorite(item.id)">
-          <i class="el-icon-star-off"></i>
-          收藏
-        </el-button>
-        <el-button type="text" @click="shareMovie(item.id)">
-          <i class="el-icon-share"></i>
-          分享
-        </el-button>
-      </div>
-    </div>
+    </template>
   </div>
 </template>
 
 <script>
-import { mapGetters, mapActions } from 'vuex'
+import { defineComponent } from 'vue'
+import { Picture, VideoPlay, Star } from '@element-plus/icons-vue'
 
-export default {
+export default defineComponent({
   name: 'RankingList',
+  
+  components: {
+    Picture,
+    VideoPlay,
+    Star
+  },
+  
   props: {
+    list: {
+      type: Array,
+      default: () => []
+    },
     type: {
       type: String,
-      default: 'hot'
+      default: 'hot',
+      validator: (value) => ['hot', 'recommended'].includes(value)
+    },
+    loading: {
+      type: Boolean,
+      default: false
     }
   },
-  computed: {
-    ...mapGetters(['hotRankings', 'scoreRankings']),
-    rankingList() {
-      return this.type === 'hot' ? this.hotRankings : this.scoreRankings
+  
+  setup() {
+    // 格式化数字（例如：1.2k, 1.5m）
+    const formatNumber = (num) => {
+      if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'm'
+      }
+      if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'k'
+      }
+      return num.toString()
     }
-  },
-  created() {
-    this.fetchRankings()
-  },
-  methods: {
-    ...mapActions(['fetchRankings']),
-    playMovie(id) {
-      this.$router.push(`/movie/${id}`)
-    },
-    viewDetail(id) {
-      this.$router.push(`/movie/${id}`)
-    },
-    addToFavorite(id) {
-      // 添加到收藏
-      console.log('添加收藏:', id)
-    },
-    shareMovie(id) {
-      // 分享电影
-      console.log('分享电影:', id)
+    
+    return {
+      formatNumber
     }
   }
-}
+})
 </script>
 
 <style lang="scss" scoped>
 .ranking-list {
-  .ranking-item {
+  padding: 20px 0;
+}
+
+.movie-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.movie-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 15px;
+  border-radius: 8px;
+  background-color: var(--el-bg-color);
+  transition: all 0.3s ease;
+  text-decoration: none;
+  color: inherit;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  &.skeleton {
+    height: 160px;
+  }
+}
+
+.rank {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--el-text-color-regular);
+  
+  &.top-3 {
+    color: #ff9900;
+    font-size: 28px;
+  }
+}
+
+.movie-cover {
+  position: relative;
+  width: 120px;
+  height: 160px;
+  margin: 0 15px;
+  border-radius: 4px;
+  overflow: hidden;
+  
+  .el-image {
+    width: 100%;
+    height: 100%;
+  }
+  
+  .image-error {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
-    padding: 15px;
-    border-bottom: 1px solid #eee;
-    transition: all 0.3s;
+    justify-content: center;
+    background-color: var(--el-fill-color-lighter);
+    color: var(--el-text-color-secondary);
+  }
+  
+  .vip-tag {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+  }
+}
 
-    &:hover {
-      background-color: #f5f7fa;
-    }
-
-    .rank-number {
-      width: 40px;
-      height: 40px;
-      line-height: 40px;
-      text-align: center;
-      font-size: 20px;
-      font-weight: bold;
-      color: #666;
-      margin-right: 20px;
-
-      &.top3 {
-        color: #fff;
-        border-radius: 50%;
-        
-        &:nth-child(1) {
-          background-color: #f7ba2a;
-        }
-        &:nth-child(2) {
-          background-color: #8492a6;
-        }
-        &:nth-child(3) {
-          background-color: #d1a579;
-        }
-      }
-    }
-
-    .movie-poster {
-      position: relative;
-      width: 120px;
-      height: 160px;
-      margin-right: 20px;
-      overflow: hidden;
-      border-radius: 4px;
-
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-
-      .hover-info {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background-color: rgba(0,0,0,0.5);
-        opacity: 0;
-        transition: all 0.3s;
-      }
-
-      &:hover .hover-info {
-        opacity: 1;
-      }
-    }
-
-    .movie-info {
-      flex: 1;
-
-      .movie-title {
-        margin: 0 0 10px;
-        font-size: 16px;
-        cursor: pointer;
-
-        &:hover {
-          color: #409EFF;
-        }
-      }
-
-      .movie-score {
-        margin-bottom: 10px;
-        color: #ff9900;
-
-        i {
-          margin-right: 5px;
-        }
-      }
-
-      .rank-change {
-        font-size: 13px;
-
-        i {
-          margin-right: 4px;
-
-          &.up {
-            color: #67C23A;
-          }
-          &.down {
-            color: #F56C6C;
-          }
-          &.same {
-            color: #909399;
-          }
-        }
-      }
-    }
-
-    .actions {
-      .el-button {
-        margin-left: 15px;
-
-        i {
-          margin-right: 4px;
-        }
-      }
+.movie-info {
+  flex: 1;
+  min-width: 0;
+  
+  .title {
+    margin: 0 0 10px;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .score {
+    margin-bottom: 10px;
+  }
+  
+  .meta {
+    color: var(--el-text-color-secondary);
+    font-size: 14px;
+    margin-bottom: 10px;
+    
+    .separator {
+      margin: 0 5px;
     }
   }
+  
+  .stats {
+    display: flex;
+    align-items: center;
+    color: var(--el-text-color-secondary);
+    font-size: 14px;
+    
+    .el-icon {
+      margin-right: 5px;
+    }
+    
+    .plays, .rating {
+      display: flex;
+      align-items: center;
+    }
+  }
+}
+
+.empty-list {
+  padding: 40px 0;
+  text-align: center;
 }
 </style> 

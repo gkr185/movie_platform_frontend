@@ -114,7 +114,7 @@
 </template>
 
 <script>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, nextTick } from 'vue'
 import { useStore } from 'vuex'
 import * as echarts from 'echarts/core'
 import { LineChart, PieChart } from 'echarts/charts'
@@ -166,79 +166,118 @@ export default {
       { value: 0, name: '其他' }
     ])
 
-    const initTrendChart = () => {
-      const chartDom = document.querySelector('.trend-chart')
-      if (!chartDom) return
-      trendChart.value = echarts.init(chartDom)
-      const option = {
-        grid: {
-          top: 40,
-          right: 40,
-          bottom: 40,
-          left: 60
-        },
-        tooltip: {
-          trigger: 'axis'
-        },
-        xAxis: {
-          type: 'category',
-          data: watchStats.value.dates
-        },
-        yAxis: {
-          type: 'value',
-          name: '观影时长(小时)'
-        },
-        series: [{
-          data: watchStats.value.durations,
-          type: 'line',
-          smooth: true,
-          areaStyle: {}
-        }]
+    const initTrendChart = async () => {
+      try {
+        await nextTick()
+        const chartDom = document.querySelector('.trend-chart')
+        if (!chartDom) {
+          console.error('找不到趋势图表容器')
+          return
+        }
+
+        if (!trendChart.value) {
+          trendChart.value = echarts.init(chartDom)
+        }
+
+        const dates = watchStats.value.dates || []
+        const durations = watchStats.value.durations || []
+
+        const option = {
+          grid: {
+            top: 40,
+            right: 40,
+            bottom: 40,
+            left: 60
+          },
+          tooltip: {
+            trigger: 'axis'
+          },
+          xAxis: {
+            type: 'category',
+            data: dates
+          },
+          yAxis: {
+            type: 'value',
+            name: '观影时长(小时)'
+          },
+          series: [{
+            name: '观影时长',
+            data: durations,
+            type: 'line',
+            smooth: true,
+            areaStyle: {
+              opacity: 0.3
+            },
+            itemStyle: {
+              color: '#409EFF'
+            }
+          }]
+        }
+
+        trendChart.value.setOption(option)
+      } catch (error) {
+        console.error('初始化趋势图表失败:', error)
       }
-      trendChart.value.setOption(option)
     }
 
-    const initPieChart = () => {
-      const chartDom = document.querySelector('.pie-chart')
-      if (!chartDom) return
-      pieChart.value = echarts.init(chartDom)
-      const option = {
-        tooltip: {
-          trigger: 'item',
-          formatter: '{b}: {c} ({d}%)'
-        },
-        legend: {
-          orient: 'vertical',
-          right: 10,
-          top: 'center'
-        },
-        series: [{
-          type: 'pie',
-          radius: ['40%', '70%'],
-          avoidLabelOverlap: true,
-          itemStyle: {
-            borderRadius: 10,
-            borderColor: '#fff',
-            borderWidth: 2
+    const initPieChart = async () => {
+      try {
+        await nextTick()
+        const chartDom = document.querySelector('.pie-chart')
+        if (!chartDom) {
+          console.error('找不到饼图容器')
+          return
+        }
+
+        if (!pieChart.value) {
+          pieChart.value = echarts.init(chartDom)
+        }
+
+        // 确保数据有效
+        const validData = watchPreferences.value.filter(item => item && item.value > 0)
+
+        const option = {
+          tooltip: {
+            trigger: 'item',
+            formatter: '{b}: {c} ({d}%)'
           },
-          label: {
-            show: false,
-            position: 'center'
+          legend: {
+            orient: 'vertical',
+            right: 10,
+            top: 'center'
           },
-          emphasis: {
+          series: [{
+            name: '观影类型',
+            type: 'pie',
+            radius: ['40%', '70%'],
+            avoidLabelOverlap: true,
+            itemStyle: {
+              borderRadius: 10,
+              borderColor: '#fff',
+              borderWidth: 2
+            },
             label: {
-              show: true,
-              fontSize: 20,
-              fontWeight: 'bold'
-            }
-          },
-          labelLine: {
-            show: false
-          },
-          data: watchPreferences.value
-        }]
+              show: false,
+              position: 'center'
+            },
+            emphasis: {
+              label: {
+                show: true,
+                fontSize: 20,
+                fontWeight: 'bold'
+              }
+            },
+            labelLine: {
+              show: false
+            },
+            data: validData.length > 0 ? validData : [{ value: 100, name: '暂无数据' }]
+          }]
+        }
+
+        pieChart.value.setOption(option)
+      } catch (error) {
+        console.error('初始化饼图失败:', error)
       }
-      pieChart.value.setOption(option)
     }
 
     const handleResize = () => {

@@ -2,65 +2,116 @@
   <div class="ranking-container">
     <el-tabs v-model="activeTab" @tab-click="handleTabClick">
       <el-tab-pane label="热门榜" name="hot">
-        <ranking-list :list="hotList" type="hot" />
+        <ranking-list :list="hotList" type="hot" :loading="loading" />
       </el-tab-pane>
-      <el-tab-pane label="好评榜" name="rating">
-        <ranking-list :list="ratingList" type="rating" />
-      </el-tab-pane>
-      <el-tab-pane label="新片榜" name="new">
-        <ranking-list :list="newList" type="new" />
+      <el-tab-pane label="推荐榜" name="recommended">
+        <ranking-list :list="recommendedList" type="recommended" :loading="loading" />
       </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <script>
+import { ref, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import RankingList from '@/components/RankingList.vue'
+import { getHotMovies, getRecommendedMovies } from '@/api/movie'
+import { useStore } from 'vuex'
 
 export default {
   name: 'Ranking',
   components: {
     RankingList
   },
-  data() {
-    return {
-      activeTab: 'hot',
-      hotList: [
-        {
-          id: 1,
-          rank: 1,
-          title: '流浪地球2',
-          score: 9.5,
-          hot: 9999,
-          poster: '/posters/earth2.jpg',
-          change: 0
-        },
-        {
-          id: 2,
-          rank: 2,
-          title: '满江红',
-          score: 9.3,
-          hot: 8888,
-          poster: '/posters/mjh.jpg',
-          change: 1
+  setup() {
+    const store = useStore()
+    const activeTab = ref('hot')
+    const loading = ref(false)
+    const hotList = ref([])
+    const recommendedList = ref([])
+
+    // 获取排行榜数据
+    const fetchRankingList = async (type) => {
+      loading.value = true
+      try {
+        let movieList
+        if (type === 'hot') {
+          movieList = await getHotMovies()
+          console.log('热门电影原始数据:', movieList)
+          
+          if (Array.isArray(movieList)) {
+            hotList.value = movieList.map((movie, index) => ({
+              id: movie.id,
+              title: movie.title,
+              cover: movie.posterUrl || movie.cover || '',
+              score: Number(movie.rating) || 0,
+              rank: index + 1,
+              playCount: Number(movie.playCount) || 0,
+              year: movie.year || (movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : '未知'),
+              category: movie.category || (movie.genres ? movie.genres.split(',')[0] : '未分类'),
+              needVip: Boolean(movie.isVip === 1 || movie.needVip === true)
+            }))
+            console.log('处理后的热门电影数据:', hotList.value)
+          } else {
+            console.error('热门电影数据格式错误:', movieList)
+            hotList.value = []
+          }
+        } else {
+          movieList = await getRecommendedMovies()
+          console.log('推荐电影原始数据:', movieList)
+          
+          if (Array.isArray(movieList)) {
+            recommendedList.value = movieList.map((movie, index) => ({
+              id: movie.id,
+              title: movie.title,
+              cover: movie.posterUrl || movie.cover || '',
+              score: Number(movie.rating) || 0,
+              rank: index + 1,
+              rating: Number(movie.rating) || 0,
+              year: movie.year || (movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : '未知'),
+              category: movie.category || (movie.genres ? movie.genres.split(',')[0] : '未分类'),
+              needVip: Boolean(movie.isVip === 1 || movie.needVip === true)
+            }))
+            console.log('处理后的推荐电影数据:', recommendedList.value)
+          } else {
+            console.error('推荐电影数据格式错误:', movieList)
+            recommendedList.value = []
+          }
         }
-        // 更多数据...
-      ],
-      ratingList: [],
-      newList: []
+
+        // 打印转换后的数据
+        const currentList = type === 'hot' ? hotList.value : recommendedList.value
+        console.log(`${type}排行榜数据:`, currentList)
+        console.log(`${type}排行榜数据长度:`, currentList.length)
+      } catch (error) {
+        console.error('获取排行榜数据失败:', error)
+        ElMessage.error('获取排行榜数据失败')
+        // 出错时设置为空数组
+        if (type === 'hot') {
+          hotList.value = []
+        } else {
+          recommendedList.value = []
+        }
+      } finally {
+        loading.value = false
+      }
     }
-  },
-  methods: {
-    handleTabClick(tab) {
-      this.fetchRankingList(tab.name)
-    },
-    fetchRankingList(type) {
-      // 获取排行榜数据
-      console.log('获取排行榜:', type)
+
+    const handleTabClick = (tab) => {
+      fetchRankingList(tab.props.name)
     }
-  },
-  created() {
-    this.fetchRankingList(this.activeTab)
+
+    onMounted(() => {
+      fetchRankingList('hot')
+    })
+
+    return {
+      activeTab,
+      loading,
+      hotList,
+      recommendedList,
+      handleTabClick
+    }
   }
 }
 </script>

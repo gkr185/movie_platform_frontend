@@ -1,5 +1,5 @@
 import { ElMessage } from 'element-plus'
-import { getMovieDetail, getMoviesByCategory } from '@/api/movie'
+import { getMovieDetail, getMoviesByCategory, getMovieCategories } from '@/api/movie'
 
 const state = {
   currentMovie: null,
@@ -25,29 +25,39 @@ const getters = {
   // 转换API电影数据为前端所需格式
   movieDisplayData: () => (movie) => {
     if (!movie) return null
+    
+    // 处理 genres 字段，确保它是字符串并且可以被分割
+    const genres = typeof movie.genres === 'string' ? movie.genres : (movie.category || '未分类')
+    const mainCategory = genres.split(',')[0]
+    
+    // 处理发布日期
+    let year
+    try {
+      year = movie.year || (movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : null)
+    } catch (e) {
+      year = null
+    }
+
     return {
       id: movie.id,
       title: movie.title,
-      cover: movie.posterUrl,
-      score: movie.rating,
-      director: movie.director,
-      actors: movie.actors,
-      category: movie.genres.split(',')[0], // 取第一个分类作为主分类
+      cover: movie.posterUrl || movie.cover,
+      score: movie.rating || 0,
+      director: movie.director || '未知',
+      actors: movie.actors || [],
+      category: mainCategory,
       releaseDate: movie.releaseDate,
-      description: movie.description,
-      duration: `${movie.runtime}分钟`,
-      year: new Date(movie.releaseDate).getFullYear(),
-      tags: movie.genres.split(','),
-      quality: '4K',
-      resolution: 'HDR',
-      videoUrl: movie.playUrl,
-      needVIP: movie.isVip === 1,
-      supportedQualities: ['1080p', '4K'],
-      defaultQuality: '1080p',
-      subtitles: [
-        { language: 'zh', url: '/uploads/subtitles/movie-zh.vtt' },
-        { language: 'en', url: '/uploads/subtitles/movie-en.vtt' }
-      ]
+      description: movie.description || '',
+      duration: movie.runtime ? `${movie.runtime}分钟` : '未知',
+      year: year || '未知',
+      tags: genres.split(','),
+      quality: movie.quality || '1080p',
+      resolution: movie.resolution || 'HD',
+      videoUrl: movie.playUrl || '',
+      needVip: movie.isVip === 1 || movie.needVip === true,
+      rating: movie.rating || 0,
+      supportedQualities: movie.supportedQualities || ['1080p'],
+      defaultQuality: movie.defaultQuality || '1080p'
     }
   }
 }
@@ -110,18 +120,22 @@ const actions = {
   async fetchMoviesByCategory({ commit, getters }, categoryId) {
     try {
       if (!categoryId) {
-        console.warn('未提供分类ID')
+        ElMessage.warning('请选择有效的电影分类')
         return []
       }
       
-      const movies = await getMoviesByCategory(categoryId)
-      if (!movies) return []
+      console.log('开始获取分类电影，分类ID:', categoryId)
+      const response = await getMoviesByCategory(categoryId)
+      console.log('获取到的分类电影原始数据:', response)
       
-      // 转换API数据为前端所需格式
-      const formattedMovies = movies.map(movie => getters.movieDisplayData(movie))
+      // 直接处理返回的数据
+      const formattedMovies = response.map(movie => getters.movieDisplayData(movie))
+      
+      console.log('处理后的电影数据:', formattedMovies)
       return formattedMovies
     } catch (error) {
-      console.error('获取相关电影失败:', error)
+      console.error('获取分类电影失败:', error)
+      ElMessage.error('获取分类电影失败，请稍后重试')
       return []
     }
   },
@@ -179,6 +193,27 @@ const actions = {
   // 重置播放状态
   resetPlaybackState({ commit }) {
     commit('RESET_PLAYBACK_STATE')
+  },
+
+  // 获取电影的分类信息
+  async fetchMovieCategories({ commit }, movieId) {
+    try {
+      if (!movieId) {
+        ElMessage.warning('请选择有效的电影')
+        return []
+      }
+
+      const response = await getMovieCategories(movieId)
+      if (!response || !response.data) {
+        return []
+      }
+
+      return response.data
+    } catch (error) {
+      console.error('获取电影分类失败:', error)
+      ElMessage.error('获取电影分类失败，请稍后重试')
+      return []
+    }
   },
 
   // 开始播放电影

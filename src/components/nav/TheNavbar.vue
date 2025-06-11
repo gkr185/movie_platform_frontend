@@ -83,8 +83,15 @@
           <template v-if="isLoggedIn">
             <el-dropdown trigger="click">
               <div class="user-info">
-                <el-avatar :size="32" :src="userAvatar"></el-avatar>
-                <span class="username">{{ username }}</span>
+                <el-avatar :size="32" :src="userAvatar">
+                  <el-icon><UserFilled /></el-icon>
+                </el-avatar>
+                <div class="user-details">
+                  <span class="username">{{ username }}</span>
+                  <span class="vip-badge" v-if="isVIP">
+                    <el-tag size="small" type="warning">VIP</el-tag>
+                  </span>
+                </div>
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -105,7 +112,7 @@
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
-import { Timer, Moon, Sunny } from '@element-plus/icons-vue'
+import { Timer, Moon, Sunny, UserFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 export default {
@@ -113,7 +120,8 @@ export default {
   components: {
     Timer,
     Moon,
-    Sunny
+    Sunny,
+    UserFilled
   },
   setup() {
     const store = useStore()
@@ -132,8 +140,10 @@ export default {
     const searchHistory = computed(() => store.state.user.searchHistory || [])
     const currentTheme = computed(() => store.state.theme)
     const isLoggedIn = computed(() => store.getters['user/isLoggedIn'])
-    const username = computed(() => store.getters['user/username'])
-    const userAvatar = computed(() => store.getters['user/userAvatar'])
+    const userInfo = computed(() => store.getters['user/userInfo'])
+    const username = computed(() => userInfo.value?.username || '')
+    const userAvatar = computed(() => userInfo.value?.avatar || '')
+    const isVIP = computed(() => store.getters['user/isVIP'])
     
     const handleSearch = () => {
       const keyword = searchKeyword.value.trim()
@@ -197,8 +207,10 @@ export default {
       menuItems,
       currentTheme,
       isLoggedIn,
+      userInfo,
       username,
       userAvatar,
+      isVIP,
       handleSearch,
       useHistoryItem,
       clearSearchHistory,
@@ -372,10 +384,21 @@ export default {
       background-color: var(--input-bg-color);
     }
 
-    .username {
-      color: var(--text-color);
-      font-size: 0.875rem;
-      font-weight: 500;
+    .user-details {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      .username {
+        color: var(--text-color);
+        font-size: 0.875rem;
+        font-weight: 500;
+      }
+
+      .vip-badge {
+        display: flex;
+        align-items: center;
+      }
     }
   }
 
@@ -504,7 +527,7 @@ export default {
   }
 
   .user-menu {
-    .username {
+    .user-details {
       display: none;
     }
   }

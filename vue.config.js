@@ -4,11 +4,25 @@ module.exports = defineConfig({
   transpileDependencies: true,
   devServer: {
     proxy: {
-      '/api': {
-        target: 'http://172.20.10.7:8061',
+      '/api/movies': {
+        target: 'http://localhost:8061',
         changeOrigin: true,
         pathRewrite: {
-          '^/api': '/api'
+          '^/api/movies': '/api/movies'
+        }
+      },
+      '/api/users': {
+        target: 'http://localhost:8062',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/api/users': '/api/users'
+        }
+      },
+      '/api/categories': {
+        target: 'http://localhost:8063',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/api/categories': '/api/categories'
         }
       }
     }
