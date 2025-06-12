@@ -82,34 +82,22 @@
 
         <!-- 评论区域 -->
         <div class="comments-section">
-          <h2 class="section-title">
+          <h3 class="section-title">
             <el-icon><ChatLineRound /></el-icon>
             评论区
-          </h2>
+          </h3>
+          
           <template v-if="isLoggedIn">
-            <comment-editor
+            <comment-list
               :movie-id="movieId"
-              @success="handleCommentSuccess"
+              @reply-success="handleCommentSuccess"
             />
           </template>
+          
           <div v-else class="login-tip">
-            <el-alert
-              title="登录后才能发表评论"
-              type="info"
-              :closable="false"
-            >
-              <template #default>
-                <router-link to="/user/login" class="login-link">
-                  立即登录
-                </router-link>
-              </template>
-            </el-alert>
+            <router-link to="/user/login" class="login-link">登录</router-link>
+            后参与评论
           </div>
-
-          <comment-list
-            :movie-id="movieId"
-            @reply="handleReply"
-          />
         </div>
       </div>
 

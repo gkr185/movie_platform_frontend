@@ -1,245 +1,420 @@
-import { mockComments as mockCommentsData, mockReplies } from '../data'
+import { 
+  getComments, 
+  submitComment, 
+  deleteComment,
+  likeComment as likeCommentApi,
+  dislikeComment as dislikeCommentApi,
+  unlikeComment,
+  undislikeComment
+} from '@/api/comments'
 
 export default {
   namespaced: true,
 
   state: {
-    commentList: [],
+    comments: [], // 所有评论数据
+    
     total: 0,
+    currentPage: 1,
+    pageSize: 10,
     loading: false
   },
 
   mutations: {
-    SET_COMMENTS(state, { comments, total }) {
-      state.commentList = comments
-      state.total = total
-    },
-
     SET_LOADING(state, loading) {
+      console.log('[Vuex Comment] 设置加载状态:', loading)
       state.loading = loading
     },
 
+    SET_PAGE(state, { currentPage, pageSize }) {
+      console.log('[Vuex Comment] 设置分页信息:', { currentPage, pageSize })
+      state.currentPage = currentPage
+      state.pageSize = pageSize
+    },
+
+    // 设置评论数据，将评论按照父子关系组织
+    SET_COMMENTS(state, { comments, total }) {
+      console.log('[Vuex Comment] 开始处理评论数据:', {
+        receivedComments: comments?.length || 0,
+        total
+      })
+
+      // 将评论分为父评论和回复
+      const parentComments = []
+      const repliesMap = {}
+
+      // 第一次遍历，收集所有回复
+      comments?.forEach(comment => {
+        if (comment.parentId) {
+          if (!repliesMap[comment.parentId]) {
+            repliesMap[comment.parentId] = []
+          }
+          repliesMap[comment.parentId].push({
+            ...comment,
+            likeCount: comment.likeCount || 0,
+            dislikeCount: comment.dislikeCount || 0,
+            rating: comment.rating || 0,
+            createTime: comment.createTime || new Date().toISOString()
+          })
+          console.log('[Vuex Comment] 添加回复到映射:', {
+            parentId: comment.parentId,
+            replyId: comment.id
+          })
+        }
+      })
+
+      // 第二次遍历，构建父评论并添加回复
+      comments?.forEach(comment => {
+        if (!comment.parentId) {
+          const replies = repliesMap[comment.id] || []
+          parentComments.push({
+            ...comment,
+            likeCount: comment.likeCount || 0,
+            dislikeCount: comment.dislikeCount || 0,
+            rating: comment.rating || 0,
+            createTime: comment.createTime || new Date().toISOString(),
+            replies: replies.sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
+          })
+          console.log('[Vuex Comment] 添加父评论:', {
+            commentId: comment.id,
+            repliesCount: replies.length
+          })
+        }
+      })
+
+      console.log('[Vuex Comment] 评论数据处理完成:', {
+        parentCommentsCount: parentComments.length,
+        repliesMapSize: Object.keys(repliesMap).length
+      })
+
+      // 按时间倒序排序父评论
+      state.comments = parentComments.sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
+      state.total = total
+    },
+
+    // 添加新评论
     ADD_COMMENT(state, comment) {
-      state.commentList.unshift(comment)
-      state.total++
-    },
+      console.log('[Vuex Comment] 添加新评论:', {
+        commentId: comment.id,
+        parentId: comment.parentId,
+        content: comment.content?.substring(0, 20)
+      })
 
-    UPDATE_COMMENT(state, { id, data }) {
-      const index = state.commentList.findIndex(c => c.id === id)
-      if (index > -1) {
-        if (typeof data === 'function') {
-          state.commentList[index] = { ...state.commentList[index], ...data(state.commentList[index]) }
+      const processedComment = {
+        ...comment,
+        likeCount: comment.likeCount || 0,
+        dislikeCount: comment.dislikeCount || 0,
+        rating: comment.rating || 0,
+        createTime: comment.createTime || new Date().toISOString(),
+        replies: []
+      }
+
+      if (!comment.parentId) {
+        // 添加父评论
+        state.comments.unshift(processedComment)
+        state.total += 1
+        console.log('[Vuex Comment] 添加父评论成功')
+      } else {
+        // 添加回复
+        const parentComment = state.comments.find(c => c.id === comment.parentId)
+        if (parentComment) {
+          if (!parentComment.replies) {
+            parentComment.replies = []
+          }
+          parentComment.replies.unshift(processedComment)
+          console.log('[Vuex Comment] 添加回复成功:', {
+            parentId: comment.parentId,
+            repliesCount: parentComment.replies.length
+          })
         } else {
-          state.commentList[index] = { ...state.commentList[index], ...data }
+          console.warn('[Vuex Comment] 未找到父评论:', comment.parentId)
         }
       }
     },
 
-    DELETE_COMMENT(state, id) {
-      const index = state.commentList.findIndex(c => c.id === id)
-      if (index > -1) {
-        state.commentList.splice(index, 1)
-        state.total--
-      }
-    },
+    // 删除评论
+    REMOVE_COMMENT(state, { commentId, parentId }) {
+      console.log('[Vuex Comment] 删除评论:', { commentId, parentId })
 
-    ADD_REPLY(state, { parentId, reply }) {
-      const comment = state.commentList.find(c => c.id === parentId)
-      if (comment) {
-        if (!comment.replies) {
-          comment.replies = []
+      if (!parentId) {
+        // 删除父评论
+        const index = state.comments.findIndex(c => c.id === commentId)
+        if (index > -1) {
+          state.comments.splice(index, 1)
+          state.total -= 1
+          console.log('[Vuex Comment] 删除父评论成功')
+        } else {
+          console.warn('[Vuex Comment] 未找到要删除的父评论:', commentId)
         }
-        comment.replies.push(reply)
-        comment.replyCount = (comment.replyCount || 0) + 1
+      } else {
+        // 删除回复
+        const parentComment = state.comments.find(c => c.id === parentId)
+        if (parentComment && parentComment.replies) {
+          const replyIndex = parentComment.replies.findIndex(r => r.id === commentId)
+          if (replyIndex > -1) {
+            parentComment.replies.splice(replyIndex, 1)
+            console.log('[Vuex Comment] 删除回复成功')
+          } else {
+            console.warn('[Vuex Comment] 未找到要删除的回复:', commentId)
+          }
+        } else {
+          console.warn('[Vuex Comment] 未找到父评论或回复列表:', parentId)
+        }
       }
     },
 
-    SET_REPLIES(state, { parentId, replies }) {
-      const comment = state.commentList.find(c => c.id === parentId)
-      if (comment) {
-        comment.replies = replies
+    // 更新评论
+    UPDATE_COMMENT(state, { commentId, parentId, data }) {
+      console.log('[Vuex Comment] 更新评论:', {
+        commentId,
+        parentId,
+        updateData: data
+      })
+
+      if (!parentId) {
+        // 更新父评论
+        const comment = state.comments.find(c => c.id === commentId)
+        if (comment) {
+          Object.assign(comment, data)
+          console.log('[Vuex Comment] 更新父评论成功')
+        } else {
+          console.warn('[Vuex Comment] 未找到要更新的父评论:', commentId)
+        }
+      } else {
+        // 更新回复
+        const parentComment = state.comments.find(c => c.id === parentId)
+        if (parentComment && parentComment.replies) {
+          const reply = parentComment.replies.find(r => r.id === commentId)
+          if (reply) {
+            Object.assign(reply, data)
+            console.log('[Vuex Comment] 更新回复成功')
+          } else {
+            console.warn('[Vuex Comment] 未找到要更新的回复:', commentId)
+          }
+        } else {
+          console.warn('[Vuex Comment] 未找到父评论或回复列表:', parentId)
+        }
       }
     }
   },
 
   actions: {
-    async fetchComments({ commit }, { movieId, page = 1, pageSize = 10, sortBy = 'newest' }) {
+    // 获取评论列表
+    async fetchComments({ commit }, { movieId, page = 1, pageSize = 10 }) {
+      console.log('[Vuex Comment] 开始获取评论列表:', {
+        movieId,
+        page,
+        pageSize
+      })
+
       commit('SET_LOADING', true)
       try {
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 500))
+        const response = await getComments(movieId, page, pageSize)
+        console.log('[Vuex Comment] 获取评论列表响应:', response)
 
-        let comments = mockCommentsData.get(Number(movieId)) || []
+        // 处理响应数据
+        const { content: comments = [], totalElements: total = 0 } = response || {}
         
-        // 排序
-        comments = [...comments].sort((a, b) => {
-          switch (sortBy) {
-            case 'hottest':
-              return b.likes - a.likes
-            case 'score-desc':
-              return b.score - a.score
-            case 'score-asc':
-              return a.score - b.score
-            default: // newest
-              return new Date(b.createTime) - new Date(a.createTime)
-          }
+        // 数据预处理
+        const processedComments = comments.map(comment => ({
+          ...comment,
+          likeCount: comment.likeCount || 0,
+          dislikeCount: comment.dislikeCount || 0,
+          rating: comment.rating || 0,
+          createTime: comment.createTime || new Date().toISOString(),
+          replies: comment.replies || []
+        }))
+
+        commit('SET_COMMENTS', { 
+          comments: processedComments, 
+          total
+        })
+        commit('SET_PAGE', { currentPage: page, pageSize })
+
+        console.log('[Vuex Comment] 评论列表获取成功:', {
+          commentsCount: processedComments.length,
+          total
         })
 
-        // 保存总数
-        const total = comments.length
-
-        // 分页 - 确保至少返回一条评论
-        const start = (page - 1) * pageSize
-        const end = Math.max(start + pageSize, 1)
-        const pagedComments = comments.slice(start, end)
-
-        commit('SET_COMMENTS', {
-          comments: pagedComments,
-          total: total // 使用原始总数，而不是分页后的数量
-        })
-
-        return { comments: pagedComments, total }
+        return { data: processedComments, total }
       } catch (error) {
-        console.error('获取评论失败:', error)
+        console.error('[Vuex Comment] 获取评论列表失败:', error)
+        // 设置空数据，避免UI错误
+        commit('SET_COMMENTS', { comments: [], total: 0 })
         throw error
       } finally {
         commit('SET_LOADING', false)
       }
     },
 
-    async addComment({ commit, rootState }, { movieId, content, score, isPrivate }) {
+    // 提交评论或回复
+    async submitComment({ commit }, { movieId, content, rating, parentId, replyTo }) {
+      console.log('[Vuex Comment] 开始提交评论:', {
+        movieId,
+        content: content?.substring(0, 20),
+        rating,
+        parentId,
+        replyTo
+      })
+
       try {
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 500))
-
-        const currentUser = rootState.user.user
-        if (!currentUser) {
-          throw new Error('请先登录')
-        }
-
-        const newComment = {
-          id: Date.now(),
+        const comment = await submitComment({
+          movieId,
           content,
-          score,
-          isPrivate,
-          likes: 0,
-          isLiked: false,
-          createTime: new Date().toISOString(),
-          user: {
-            id: currentUser.id,
-            name: currentUser.name,
-            avatar: currentUser.avatar,
-            isVIP: currentUser.vip
-          },
-          replies: [],
-          replyCount: 0
-        }
+          rating,
+          parentId,
+          replyTo
+        })
 
-        // 更新模拟数据
-        const movieComments = mockCommentsData.get(Number(movieId)) || []
-        movieComments.unshift(newComment)
-        mockCommentsData.set(Number(movieId), movieComments)
+        console.log('[Vuex Comment] 提交评论成功:', comment)
 
-        commit('ADD_COMMENT', newComment)
-        return newComment
+        commit('ADD_COMMENT', {
+          ...comment,
+          likeCount: 0,
+          dislikeCount: 0,
+          rating: rating || 0,
+          createTime: comment.createTime || new Date().toISOString(),
+          replies: []
+        })
+        return comment
       } catch (error) {
-        console.error('发表评论失败:', error)
+        console.error('[Vuex Comment] 提交评论失败:', error)
         throw error
       }
     },
 
-    async addReply({ commit, rootState }, { parentId, content, replyTo }) {
+    // 删除评论或回复
+    async deleteComment({ commit }, { commentId, movieId, parentId }) {
+      console.log('[Vuex Comment] 开始删除评论:', {
+        commentId,
+        movieId,
+        parentId
+      })
+
       try {
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 500))
-
-        const currentUser = rootState.user.user
-        if (!currentUser) {
-          throw new Error('请先登录')
-        }
-
-        const newReply = {
-          id: Date.now(),
-          content,
-          createTime: new Date().toISOString(),
-          user: {
-            id: currentUser.id,
-            name: currentUser.name,
-            avatar: currentUser.avatar,
-            isVIP: currentUser.vip
-          }
-        }
-
-        if (replyTo) {
-          newReply.replyTo = {
-            id: replyTo.id,
-            name: replyTo.name
-          }
-        }
-
-        // 更新模拟数据
-        const replies = mockReplies.get(parentId) || []
-        replies.push(newReply)
-        mockReplies.set(parentId, replies)
-
-        commit('ADD_REPLY', { parentId, reply: newReply })
-        return newReply
+        await deleteComment(commentId, movieId)
+        commit('REMOVE_COMMENT', { commentId, parentId })
+        console.log('[Vuex Comment] 删除评论成功')
       } catch (error) {
-        console.error('发表回复失败:', error)
+        console.error('[Vuex Comment] 删除评论失败:', error)
         throw error
       }
     },
 
-    async likeComment({ commit, rootState }, commentId) {
-      try {
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 300))
+    // 点赞评论
+    async likeComment({ commit }, { commentId, movieId, parentId }) {
+      console.log('[Vuex Comment] 开始点赞评论:', {
+        commentId,
+        movieId,
+        parentId
+      })
 
-        if (!rootState.user.user) {
-          throw new Error('请先登录')
-        }
+      try {
+        const response = await likeCommentApi(commentId, movieId)
+        console.log('[Vuex Comment] 点赞评论响应:', response)
 
         commit('UPDATE_COMMENT', {
-          id: commentId,
-          data: comment => ({
-            isLiked: !comment.isLiked,
-            likes: comment.likes + (comment.isLiked ? -1 : 1)
-          })
+          commentId,
+          parentId,
+          data: {
+            liked: true,
+            likeCount: (response.likeCount || 0) + 1
+          }
         })
+        return response
       } catch (error) {
-        console.error('点赞失败:', error)
+        console.error('[Vuex Comment] 点赞评论失败:', error)
         throw error
       }
     },
 
-    async deleteComment({ commit }, commentId) {
+    // 取消点赞评论
+    async unlikeComment({ commit }, { commentId, movieId, parentId }) {
+      console.log('[Vuex Comment] 开始取消点赞:', {
+        commentId,
+        movieId,
+        parentId
+      })
+
       try {
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 300))
-        commit('DELETE_COMMENT', commentId)
+        const response = await unlikeComment(commentId, movieId)
+        console.log('[Vuex Comment] 取消点赞响应:', response)
+
+        commit('UPDATE_COMMENT', {
+          commentId,
+          parentId,
+          data: {
+            liked: false,
+            likeCount: Math.max((response.likeCount || 0) - 1, 0)
+          }
+        })
+        return response
       } catch (error) {
-        console.error('删除评论失败:', error)
+        console.error('[Vuex Comment] 取消点赞失败:', error)
         throw error
       }
     },
 
-    async loadMoreReplies({ commit }, commentId) {
+    // 点踩评论
+    async dislikeComment({ commit }, { commentId, movieId, parentId }) {
+      console.log('[Vuex Comment] 开始点踩评论:', {
+        commentId,
+        movieId,
+        parentId
+      })
+
       try {
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        const replies = mockReplies.get(commentId) || []
-        commit('SET_REPLIES', { parentId: commentId, replies })
+        const response = await dislikeCommentApi(commentId, movieId)
+        console.log('[Vuex Comment] 点踩评论响应:', response)
+
+        commit('UPDATE_COMMENT', {
+          commentId,
+          parentId,
+          data: {
+            disliked: true,
+            dislikeCount: (response.dislikeCount || 0) + 1
+          }
+        })
+        return response
       } catch (error) {
-        console.error('加载回复失败:', error)
+        console.error('[Vuex Comment] 点踩评论失败:', error)
+        throw error
+      }
+    },
+
+    // 取消点踩评论
+    async undislikeComment({ commit }, { commentId, movieId, parentId }) {
+      console.log('[Vuex Comment] 开始取消点踩:', {
+        commentId,
+        movieId,
+        parentId
+      })
+
+      try {
+        const response = await undislikeComment(commentId, movieId)
+        console.log('[Vuex Comment] 取消点踩响应:', response)
+
+        commit('UPDATE_COMMENT', {
+          commentId,
+          parentId,
+          data: {
+            disliked: false,
+            dislikeCount: Math.max((response.dislikeCount || 0) - 1, 0)
+          }
+        })
+        return response
+      } catch (error) {
+        console.error('[Vuex Comment] 取消点踩失败:', error)
         throw error
       }
     }
   },
 
   getters: {
-    commentList: state => state.commentList,
-    total: state => state.total,
-    loading: state => state.loading
+    commentsList: state => state.comments,
+    commentsTotal: state => state.total,
+    commentsLoading: state => state.loading,
+    currentPage: state => state.currentPage,
+    pageSize: state => state.pageSize
   }
-} 
+}

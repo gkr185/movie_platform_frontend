@@ -1,162 +1,177 @@
 <template>
   <div class="comment-editor">
-    <!-- 评分区域 -->
-    <div class="rating-section" v-if="!replyTo">
-      <span class="rating-label">评分：</span>
-      <el-rate
-        v-model="score"
-        :max="10"
-        :allow-half="true"
-        class="rating-stars"
-      />
-      <span class="rating-value">{{ score }}分</span>
+    <div class="editor-header">
+      <div class="user-info" v-if="isLoggedIn">
+        <el-avatar :src="userAvatar" :size="40">{{ username.charAt(0) }}</el-avatar>
+        <span class="username">{{ username }}</span>
+      </div>
+      <div v-else class="login-tip">
+        <el-button type="text" @click="$router.push('/login')">登录</el-button>
+        后发表评论
+      </div>
     </div>
-
-    <!-- 回复提示 -->
-    <div v-if="replyTo" class="reply-info">
-      回复 <span class="reply-name">@{{ replyTo.name }}</span>：
-      <el-button 
-        type="primary" 
-        link
-        class="cancel-reply"
-        @click="handleCancelReply"
-      >
-        取消回复
-      </el-button>
-    </div>
-
-    <!-- 编辑区域 -->
-    <div class="editor-main">
+    
+    <div class="editor-content">
       <el-input
         v-model="content"
         type="textarea"
-        :rows="3"
-        :maxlength="1000"
-        :show-word-limit="true"
-        resize="none"
-        placeholder="写下你的评论..."
+        :rows="4"
+        :placeholder="isLoggedIn ? '写下你的观后感...' : '请先登录'"
+        :disabled="!isLoggedIn"
       />
       
       <div class="editor-footer">
-        <div class="editor-options">
-          <el-checkbox 
-            v-if="!replyTo"
-            v-model="isPrivate"
-            class="private-check"
-          >
-            仅作者可见
-          </el-checkbox>
+        <div class="rating">
+          <span class="rating-label">评分：</span>
+          <el-rate
+            v-model="rating"
+            :colors="['#ff9900', '#ff9900', '#ff9900']"
+            :disabled="!isLoggedIn"
+          />
         </div>
         
-        <div class="editor-actions">
-          <el-button @click="handleCancel">取消</el-button>
-          <el-button 
-            type="primary" 
-            :loading="submitting"
-            :disabled="!canSubmit"
-            @click="handleSubmit"
-          >
-            发表评论
-          </el-button>
-        </div>
+        <el-button
+          type="primary"
+          :disabled="!isLoggedIn || !content.trim() || !rating"
+          @click="handleSubmit"
+          :loading="submitting"
+        >
+          发表评论
+        </el-button>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, computed } from 'vue'
-import { useStore } from 'vuex'
-import { ElMessage } from 'element-plus'
+import { mapGetters } from 'vuex'
 
 export default {
   name: 'CommentEditor',
+  
   props: {
     movieId: {
       type: [Number, String],
-      required: true
+      required: true,
+      validator(value) {
+        if (!value) {
+          console.error('[CommentEditor] movieId is required but got:', value)
+          return false
+        }
+        return true
+      }
     },
-    replyTo: {
-      type: Object,
-      default: null
+    parentId: {
+      type: [Number, String],
+      default: 0
     }
   },
-  emits: ['success', 'cancel'],
-  setup(props, { emit }) {
-    const store = useStore()
-    const content = ref('')
-    const score = ref(0)
-    const isPrivate = ref(false)
-    const submitting = ref(false)
-
-    // 是否可以提交
-    const canSubmit = computed(() => {
-      if (!content.value.trim()) return false
-      if (!props.replyTo && score.value === 0) return false
-      return true
-    })
-
-    // 提交评论
-    const handleSubmit = async () => {
-      if (!canSubmit.value) return
-
-      try {
-        submitting.value = true
-        if (props.replyTo) {
-          // 提交回复
-          await store.dispatch('comment/addReply', {
-            parentId: props.replyTo.id,
-            content: content.value.trim(),
-            replyTo: props.replyTo
-          })
-        } else {
-          // 提交评论
-          await store.dispatch('comment/addComment', {
-            movieId: props.movieId,
-            content: content.value.trim(),
-            score: score.value,
-            isPrivate: isPrivate.value
-          })
-        }
-        
-        ElMessage.success('发表成功')
-        resetForm()
-        emit('success')
-      } catch (error) {
-        ElMessage.error(error.message || '发表失败')
-      } finally {
-        submitting.value = false
+  
+  data() {
+    return {
+      content: '',
+      rating: 0,
+      submitting: false,
+      error: null
+    }
+  },
+  
+  computed: {
+    ...mapGetters('user', ['isLoggedIn', 'username', 'userAvatar'])
+  },
+  
+  watch: {
+    content(newVal) {
+      // 监控内容长度
+      if (newVal.length > 500) {
+        console.warn('[CommentEditor] Content length exceeds 500 characters')
+        this.content = newVal.slice(0, 500)
+        this.$message.warning('评论内容不能超过500字')
       }
     }
+  },
 
-    // 取消
-    const handleCancel = () => {
-      resetForm()
-      emit('cancel')
+  created() {
+    console.log('[CommentEditor] Initialized with movieId:', this.movieId, 'parentId:', this.parentId)
+  },
+  
+  methods: {
+    validateInput() {
+      console.log('[CommentEditor] Validating input:', {
+        content: this.content,
+        rating: this.rating,
+        isLoggedIn: this.isLoggedIn
+      })
+
+      if (!this.isLoggedIn) {
+        console.error('[CommentEditor] User not logged in')
+        throw new Error('请先登录')
+      }
+      
+      if (!this.content.trim()) {
+        console.error('[CommentEditor] Empty content')
+        throw new Error('请输入评论内容')
+      }
+      
+      if (!this.rating && this.parentId === 0) {
+        console.error('[CommentEditor] Rating required for main comment')
+        throw new Error('请给出评分')
+      }
+
+      return true
+    },
+
+    async handleSubmit() {
+      console.log('[CommentEditor] Attempting to submit comment')
+      
+      try {
+        this.validateInput()
+        
+        console.log('[CommentEditor] Submitting comment:', {
+          movieId: this.movieId,
+          content: this.content,
+          rating: this.rating,
+          parentId: this.parentId
+        })
+
+        await this.$store.dispatch('comment/submitComment', {
+          movieId: this.movieId,
+          content: this.content,
+          rating: this.rating,
+          parentId: this.parentId
+        })
+        
+        this.content = ''
+        this.rating = 0
+        
+        this.$message.success('评论发表成功')
+        
+        this.$emit('success')
+        
+        console.log('[CommentEditor] Comment submitted successfully')
+      } catch (error) {
+        console.error('[CommentEditor] Failed to submit comment:', error)
+        this.$message.error(error.message || '评论发表失败，请稍后重试')
+      }
+    },
+
+    handleContentInput(event) {
+      console.log('[CommentEditor] Content changed, length:', event.target.value.length)
+    },
+
+    handleRatingChange(value) {
+      console.log('[CommentEditor] Rating changed to:', value)
     }
+  },
 
-    // 取消回复
-    const handleCancelReply = () => {
-      resetForm()
-      emit('cancel')
-    }
-
-    // 重置表单
-    const resetForm = () => {
-      content.value = ''
-      score.value = 0
-      isPrivate.value = false
-    }
-
-    return {
-      content,
-      score,
-      isPrivate,
-      submitting,
-      canSubmit,
-      handleSubmit,
-      handleCancel,
-      handleCancelReply
+  beforeUnmount() {
+    console.log('[CommentEditor] Component unmounting, cleaning up...')
+    // 清理未保存的内容
+    if (this.content.trim() || this.rating) {
+      console.warn('[CommentEditor] Unsaved content detected on unmount:', {
+        content: this.content,
+        rating: this.rating
+      })
     }
   }
 }
@@ -164,165 +179,47 @@ export default {
 
 <style lang="scss" scoped>
 .comment-editor {
-  padding: 20px;
+  background: #fff;
   border-radius: 8px;
-  background: var(--comment-editor-bg);
-  box-shadow: var(--card-shadow);
-  border: 1px solid var(--comment-editor-border);
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
 
-  .rating-section {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-
-    .rating-label {
-      color: var(--comment-text);
-      font-size: 14px;
-    }
-
-    .rating-stars {
-      flex: 1;
-    }
-
-    .rating-value {
-      min-width: 48px;
-      color: var(--el-color-warning);
-      font-size: 14px;
-    }
-  }
-
-  .reply-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 16px;
-    padding: 8px 12px;
-    background: var(--comment-reply-bg);
-    border-radius: 4px;
-    color: var(--comment-text);
-    font-size: 14px;
-
-    .reply-name {
-      color: var(--el-color-primary);
-      font-weight: 500;
-    }
-
-    .cancel-reply {
-      margin-left: auto;
-      font-size: 13px;
-      color: var(--comment-action);
-      
-      &:hover {
-        color: var(--comment-action-hover);
-      }
-    }
-  }
-
-  .editor-main {
-    .el-textarea {
-      :deep(.el-textarea__inner) {
-        background: var(--comment-bg);
-        border-color: var(--comment-editor-border);
-        color: var(--comment-text);
-        transition: all 0.3s;
-
-        &:hover, &:focus {
-          background: var(--comment-bg);
-          border-color: var(--el-color-primary);
-        }
-
-        &::placeholder {
-          color: var(--comment-text-light);
-        }
-      }
-    }
-  }
-
-  .editor-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid var(--comment-divider);
-
-    .editor-options {
-      .private-check {
-        color: var(--comment-text);
-        font-size: 13px;
-      }
-    }
-
-    .editor-actions {
+  .editor-header {
+    margin-bottom: 15px;
+    
+    .user-info {
       display: flex;
-      gap: 12px;
-
-      .el-button {
-        &:not(.el-button--primary) {
-          background: var(--comment-bg);
-          border-color: var(--comment-border);
-          color: var(--comment-text);
-
-          &:hover {
-            border-color: var(--el-color-primary);
-            color: var(--el-color-primary);
-          }
-        }
+      align-items: center;
+      
+      .username {
+        margin-left: 10px;
+        font-weight: 500;
       }
+    }
+    
+    .login-tip {
+      color: #606266;
     }
   }
-}
 
-// 响应式设计
-@media screen and (max-width: 768px) {
-  .comment-editor {
-    padding: 16px;
-
-    .rating-section {
-      flex-wrap: wrap;
-      gap: 8px;
-
-      .rating-label {
-        width: 100%;
-      }
-    }
-
+  .editor-content {
     .editor-footer {
-      flex-direction: column;
-      gap: 16px;
+      margin-top: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
 
-      .editor-actions {
-        width: 100%;
-        justify-content: flex-end;
-      }
-    }
-  }
-}
-
-// 深色模式适配
-html[data-theme='dark'] {
-  .comment-editor {
-    background: var(--el-bg-color);
-    box-shadow: var(--el-box-shadow-dark);
-
-    .reply-info {
-      background: var(--el-color-primary-light-3);
-      color: var(--el-text-color-primary);
-    }
-
-    .editor-main {
-      .el-textarea {
-        :deep(.el-textarea__inner) {
-          background: var(--el-bg-color-overlay);
-          border-color: var(--el-border-color);
-
-          &:hover, &:focus {
-            background: var(--el-bg-color-overlay);
-          }
+      .rating {
+        display: flex;
+        align-items: center;
+        
+        .rating-label {
+          margin-right: 10px;
+          color: #606266;
         }
       }
     }
   }
 }
-</style> 
+</style>

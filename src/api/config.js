@@ -31,5 +31,16 @@ export const API_URLS = {
     PROFILE: '/api/users/{userId}',
     CHECK_USERNAME: '/api/users/check-username',
     CHANGE_PASSWORD: '/api/users/{userId}/password'
+  },
+  // 评论相关接口
+  COMMENT: {
+    CREATE: '/api/comments', // 创建评论
+    LIST: '/api/comments/movies/{movieId}', // 获取电影评论列表
+    UPDATE: '/api/comments/{commentId}', // 更新评论
+    DELETE: '/api/comments/{commentId}', // 删除评论
+    LIKE: '/api/comments/{commentId}/like', // 点赞评论
+    UNLIKE: '/api/comments/{commentId}/unlike', // 取消点赞
+    DISLIKE: '/api/comments/{commentId}/dislike', // 点踩评论
+    UNDISLIKE: '/api/comments/{commentId}/undislike' // 取消点踩
   }
 }

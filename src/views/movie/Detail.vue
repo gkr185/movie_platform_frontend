@@ -105,35 +105,18 @@
         <div class="section-header">
           <h2>评论区</h2>
         </div>
-
-        <!-- 评论编辑器 -->
+        
         <template v-if="isLoggedIn">
-          <comment-editor
+          <comment-list
             :movie-id="movie.id"
-            :reply-to="replyTo"
-            @cancel="handleEditorCancel"
-            @success="handleEditorSuccess"
+            @reply-success="handleEditorSuccess"
           />
         </template>
+        
         <div v-else class="login-tip">
-          <el-alert
-            title="登录后才能发表评论"
-            type="info"
-            :closable="false"
-          >
-            <template #default>
-              <router-link to="/user/login" class="login-link">
-                立即登录
-              </router-link>
-            </template>
-          </el-alert>
+          <router-link to="/user/login" class="login-link">登录</router-link>
+          后参与评论
         </div>
-
-        <!-- 评论列表 -->
-        <comment-list
-          :movie-id="movie.id"
-          @reply="handleReply"
-        />
       </div>
 
       <!-- 相关推荐 -->
