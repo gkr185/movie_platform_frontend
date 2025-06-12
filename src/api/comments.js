@@ -12,19 +12,26 @@ import { API_URLS } from './config'
  * @returns {Promise}
  */
 export function createComment(commentData) {
-  console.log('[API] 发起创建评论请求:', {
-    url: API_URLS.COMMENT.CREATE,
-    data: commentData
+  console.log('[API Comments] 发起创建评论请求:', {
+    ...commentData,
+    content: commentData.content?.substring(0, 20) + '...'
   })
+  
   return request({
     url: API_URLS.COMMENT.CREATE,
     method: 'post',
-    data: commentData
+    data: {
+      ...commentData,
+      parentId: commentData.parentId || 0,
+      likeCount: 0,
+      dislikeCount: 0,
+      status: 1
+    }
   }).then(response => {
-    console.log('[API] 创建评论成功:', response)
+    console.log('[API Comments] 创建评论成功:', response)
     return response
   }).catch(error => {
-    console.error('[API] 创建评论失败:', error)
+    console.error('[API Comments] 创建评论失败:', error)
     throw error
   })
 }
@@ -39,7 +46,7 @@ export function createComment(commentData) {
  */
 export function getMovieComments(movieId, params) {
   const url = API_URLS.COMMENT.LIST.replace('{movieId}', movieId)
-  console.log('[API] 发起获取评论列表请求:', {
+  console.log('[API Comments] 发起获取评论列表请求:', {
     url,
     movieId,
     params
@@ -49,7 +56,7 @@ export function getMovieComments(movieId, params) {
     method: 'get',
     params
   }).then(response => {
-    console.log('[API] 获取评论列表成功:', {
+    console.log('[API Comments] 获取评论列表成功:', {
       total: response?.data?.totalElements || 0,
       currentPage: response?.data?.number || 0,
       pageSize: response?.data?.size || 10,
@@ -57,7 +64,7 @@ export function getMovieComments(movieId, params) {
     })
     return response
   }).catch(error => {
-    console.error('[API] 获取评论列表失败:', {
+    console.error('[API Comments] 获取评论列表失败:', {
       error,
       movieId,
       params
@@ -209,39 +216,19 @@ export function undislikeComment(commentId) {
 
 // 获取评论列表
 export function getComments(movieId, page = 1, pageSize = 10) {
+  const url = API_URLS.COMMENT.LIST.replace('{movieId}', movieId)
   console.log('[API Comments] 请求评论列表:', {
+    url,
     movieId,
     page,
     pageSize
   })
   return request({
-    url: API_URLS.COMMENT.LIST.replace('{movieId}', movieId),
+    url,
     method: 'get',
     params: {
       page,
       pageSize
-    }
-  })
-}
-
-// 发表评论
-export function submitComment({ movieId, content, rating, parentId, replyTo }) {
-  console.log('[API Comments] 提交评论:', {
-    movieId,
-    content: content?.substring(0, 20),
-    rating,
-    parentId,
-    replyTo
-  })
-  return request({
-    url: API_URLS.COMMENT.CREATE,
-    method: 'post',
-    data: {
-      movieId,
-      content,
-      rating,
-      parentId,
-      replyTo
     }
   })
 }

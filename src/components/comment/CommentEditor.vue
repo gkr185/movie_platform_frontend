@@ -32,7 +32,7 @@
         
         <el-button
           type="primary"
-          :disabled="!isLoggedIn || !content.trim() || !rating"
+          :disabled="!canSubmit"
           @click="handleSubmit"
           :loading="submitting"
         >
@@ -64,6 +64,10 @@ export default {
     parentId: {
       type: [Number, String],
       default: 0
+    },
+    replyTo: {
+      type: String,
+      default: ''
     }
   },
   
@@ -77,7 +81,14 @@ export default {
   },
   
   computed: {
-    ...mapGetters('user', ['isLoggedIn', 'username', 'userAvatar'])
+    ...mapGetters('user', ['isLoggedIn', 'username', 'userAvatar', 'currentUser']),
+    
+    canSubmit() {
+      return this.isLoggedIn && 
+             this.content.trim() && 
+             (this.parentId || this.rating) && 
+             !this.submitting
+    }
   },
   
   watch: {
@@ -118,40 +129,53 @@ export default {
         throw new Error('请给出评分')
       }
 
+      if (!this.currentUser?.id) {
+        console.error('[CommentEditor] User ID not found')
+        throw new Error('用户信息不完整，请重新登录')
+      }
+
       return true
     },
 
     async handleSubmit() {
+      if (this.submitting) {
+        return
+      }
+
       console.log('[CommentEditor] Attempting to submit comment')
+      this.submitting = true
       
       try {
         this.validateInput()
         
-        console.log('[CommentEditor] Submitting comment:', {
-          movieId: this.movieId,
-          content: this.content,
+        const commentData = {
+          movieId: Number(this.movieId),
+          content: this.content.trim(),
           rating: this.rating,
-          parentId: this.parentId
-        })
+          parentId: this.parentId ? Number(this.parentId) : 0,
+          userId: this.currentUser.id
+        }
 
-        await this.$store.dispatch('comment/submitComment', {
-          movieId: this.movieId,
-          content: this.content,
-          rating: this.rating,
-          parentId: this.parentId
-        })
+        if (this.replyTo) {
+          commentData.replyTo = this.replyTo
+        }
+        
+        console.log('[CommentEditor] Submitting comment:', commentData)
+
+        await this.$store.dispatch('comment/submitComment', commentData)
         
         this.content = ''
         this.rating = 0
         
         this.$message.success('评论发表成功')
-        
         this.$emit('success')
         
         console.log('[CommentEditor] Comment submitted successfully')
       } catch (error) {
         console.error('[CommentEditor] Failed to submit comment:', error)
         this.$message.error(error.message || '评论发表失败，请稍后重试')
+      } finally {
+        this.submitting = false
       }
     },
 
@@ -173,7 +197,9 @@ export default {
         rating: this.rating
       })
     }
-  }
+  },
+
+  emits: ['success']
 }
 </script>
 

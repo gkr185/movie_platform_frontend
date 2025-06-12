@@ -1,36 +1,85 @@
 <template>
-  <div class="ranking-container">
-    <el-tabs v-model="activeTab" @tab-click="handleTabClick">
-      <el-tab-pane label="热门榜" name="hot">
-        <ranking-list :list="hotList" type="hot" :loading="loading" />
-      </el-tab-pane>
-      <el-tab-pane label="推荐榜" name="recommended">
-        <ranking-list :list="recommendedList" type="recommended" :loading="loading" />
-      </el-tab-pane>
-    </el-tabs>
+  <div class="section">
+    <div class="section-header">
+      <h2>{{ title }}</h2>
+      <el-button 
+        type="text" 
+        @click="handleViewMore"
+      >查看更多</el-button>
+    </div>
+    <div class="movie-list">
+      <el-row :gutter="20" v-if="!loading && currentList.length > 0">
+        <el-col 
+          :xs="12" 
+          :sm="8" 
+          :md="6" 
+          :lg="4" 
+          v-for="movie in currentList.slice(0, 6)" 
+          :key="movie.id"
+        >
+          <movie-card :movie="movie" />
+        </el-col>
+      </el-row>
+      <div v-if="loading" class="loading-wrapper">
+        <el-skeleton :rows="3" animated />
+      </div>
+      <div v-if="!loading && currentList.length === 0" class="empty-wrapper">
+        <el-empty description="暂无数据" />
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import RankingList from '@/components/RankingList.vue'
 import { getHotMovies, getRecommendedMovies } from '@/api/movie'
-import { useStore } from 'vuex'
-import { useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
+import MovieCard from '@/components/movie/MovieCard.vue'
 
 export default {
-  name: 'Ranking',
+  name: 'MovieSection',
   components: {
-    RankingList
+    MovieCard
   },
-  setup() {
-    const store = useStore()
-    const route = useRoute()
-    const activeTab = ref(route.query.tab || 'hot')
+  props: {
+    title: {
+      type: String,
+      required: true
+    },
+    type: {
+      type: String,
+      required: true,
+      validator: (value) => ['hot', 'new'].includes(value)
+    },
+    moreLink: {
+      type: String,
+      required: true
+    }
+  },
+  setup(props) {
+    const router = useRouter()
     const loading = ref(false)
     const hotList = ref([])
     const recommendedList = ref([])
+
+    const currentList = computed(() => {
+      return props.type === 'hot' ? hotList.value : recommendedList.value
+    })
+
+    const handleViewMore = () => {
+      if (props.type === 'hot') {
+        router.push({
+          path: '/ranking',
+          query: { tab: 'hot' }
+        })
+      } else {
+        router.push({
+          path: '/ranking',
+          query: { tab: 'recommended' }
+        })
+      }
+    }
 
     // 获取排行榜数据
     const fetchRankingList = async (type) => {
@@ -82,9 +131,8 @@ export default {
         }
 
         // 打印转换后的数据
-        const currentList = type === 'hot' ? hotList.value : recommendedList.value
-        console.log(`${type}排行榜数据:`, currentList)
-        console.log(`${type}排行榜数据长度:`, currentList.length)
+        console.log(`${type}排行榜数据:`, currentList.value)
+        console.log(`${type}排行榜数据长度:`, currentList.value.length)
       } catch (error) {
         console.error('获取排行榜数据失败:', error)
         ElMessage.error('获取排行榜数据失败')
@@ -99,34 +147,55 @@ export default {
       }
     }
 
-    const handleTabClick = (tab) => {
-      activeTab.value = tab.props.name
-      fetchRankingList(tab.props.name)
-    }
-
     onMounted(() => {
-      fetchRankingList(activeTab.value)
+      fetchRankingList(props.type)
     })
 
     return {
-      activeTab,
       loading,
-      hotList,
-      recommendedList,
-      handleTabClick
+      currentList,
+      handleViewMore
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.ranking-container {
+.section {
   padding: 20px;
   max-width: 1200px;
-  margin: 0 auto;
+  margin: 0 auto 30px;
   background-color: var(--card-bg-color);
-  color: var(--text-color);
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+
+    h2 {
+      margin: 0;
+      font-size: 20px;
+      color: var(--text-color);
+    }
+  }
+
+  .movie-list {
+    .el-col {
+      margin-bottom: 20px;
+    }
+  }
+
+  .loading-wrapper {
+    padding: 20px;
+  }
+
+  .empty-wrapper {
+    padding: 40px 0;
+  }
 }
 </style> 

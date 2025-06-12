@@ -7,34 +7,16 @@
     />
 
     <!-- 热门推荐 -->
-    <div class="section">
-      <div class="section-header">
-        <h2>热门推荐</h2>
-        <el-button type="text" @click="$router.push('/category')">查看更多</el-button>
-      </div>
-      <div class="movie-list">
-        <el-row :gutter="20">
-          <el-col :xs="12" :sm="8" :md="6" :lg="4" v-for="movie in hotMovies" :key="movie.id">
-            <movie-card :movie="movie" />
-          </el-col>
-        </el-row>
-      </div>
-    </div>
+    <movie-section
+      title="热门推荐"
+      type="hot"
+    />
 
     <!-- 最新上映 -->
-    <div class="section">
-      <div class="section-header">
-        <h2>最新上映</h2>
-        <el-button type="text" @click="$router.push('/newest')">查看更多</el-button>
-      </div>
-      <div class="movie-list">
-        <el-row :gutter="20">
-          <el-col :xs="12" :sm="8" :md="6" :lg="4" v-for="movie in newMovies" :key="movie.id">
-            <movie-card :movie="movie" />
-          </el-col>
-        </el-row>
-      </div>
-    </div>
+    <movie-section
+      title="最新上映"
+      type="new"
+    />
   </div>
 </template>
 
@@ -43,21 +25,19 @@ import { computed } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import MovieCard from '@/components/movie/MovieCard.vue'
 import MovieBanner from '@/components/movie/MovieBanner.vue'
+import MovieSection from '@/components/MovieSection.vue'
 
 export default {
   name: 'Home',
   components: {
-    MovieCard,
-    MovieBanner
+    MovieBanner,
+    MovieSection
   },
   setup() {
     const store = useStore()
     const router = useRouter()
 
-    const hotMovies = computed(() => store.getters.hotMovies)
-    const newMovies = computed(() => store.getters.newMovies)
     const banners = computed(() => store.getters.banners)
     const isLoggedIn = computed(() => store.getters.isLoggedIn)
 
@@ -78,14 +58,10 @@ export default {
       }
     }
 
-    // 获取数据
-    store.dispatch('fetchHotMovies')
-    store.dispatch('fetchNewMovies')
+    // 获取轮播图数据
     store.dispatch('fetchBanners')
 
     return {
-      hotMovies,
-      newMovies,
       banners,
       handleAddToFavorites
     }

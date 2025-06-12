@@ -1,124 +1,121 @@
 <template>
   <div class="comment-item" :class="{ 'is-reply': isReply }">
     <div class="comment-avatar">
-      <el-avatar :size="40" :src="comment.userAvatar">
-        {{ comment.username?.charAt(0) }}
+      <el-avatar :size="40" :src="comment.user?.avatar">
+        {{ comment.user?.username?.charAt(0)?.toUpperCase() }}
       </el-avatar>
     </div>
     
     <div class="comment-content">
       <div class="comment-header">
-        <span class="username">{{ comment.username }}</span>
-        <template v-if="comment.replyTo">
-          <span class="reply-to">回复</span>
-          <span class="reply-username">@{{ comment.replyTo.username }}</span>
-        </template>
-        <el-rate
-          v-if="!isReply"
-          v-model="comment.rating"
-          disabled
-          :colors="['#ff9900', '#ff9900', '#ff9900']"
-        />
-      </div>
-      
-      <div class="comment-text">{{ comment.content }}</div>
-      
-      <div class="comment-footer">
-        <span class="time">{{ formatTime(comment.createTime) }}</span>
-        
-        <div class="actions">
+        <div class="comment-info">
+          <span class="username">{{ comment.user?.username }}</span>
+          <span class="rating" v-if="comment.rating">
+            <el-rate
+              v-model="comment.rating"
+              disabled
+              size="small"
+              :max="5"
+              :colors="['#F7BA2A', '#F7BA2A', '#F7BA2A']"
+            />
+          </span>
+          <span class="time">{{ formatTime(comment.createTime) }}</span>
+        </div>
+        <div class="comment-actions">
           <el-button 
             type="text" 
             size="small"
-            :class="{ active: comment.liked }"
+            :class="{ 'is-liked': comment.liked }"
             @click="handleLike"
           >
-            <i class="el-icon-thumb"></i>
+            <el-icon><ThumbsUp /></el-icon>
             {{ comment.likeCount || 0 }}
           </el-button>
-          
           <el-button 
             type="text" 
             size="small"
-            :class="{ active: comment.disliked }"
+            :class="{ 'is-disliked': comment.disliked }"
             @click="handleDislike"
           >
-            <i class="el-icon-thumb" style="transform: rotate(180deg)"></i>
+            <el-icon><ThumbsDown /></el-icon>
             {{ comment.dislikeCount || 0 }}
           </el-button>
-          
           <el-button 
             type="text" 
             size="small"
-            @click="handleReply"
+            @click="showReplyEditor = true"
           >
-            <i class="el-icon-chat-line-round"></i>
+            <el-icon><ChatLineRound /></el-icon>
             回复
           </el-button>
-          
           <el-button 
             v-if="canDelete"
             type="text" 
             size="small"
+            class="delete-btn"
             @click="handleDelete"
           >
-            <i class="el-icon-delete"></i>
+            <el-icon><Delete /></el-icon>
             删除
           </el-button>
         </div>
       </div>
-
-      <!-- 回复框 -->
+      
+      <div class="comment-text">{{ comment.content }}</div>
+      
       <div v-if="showReplyEditor" class="reply-editor">
-        <comment-editor
+        <CommentEditor
           :movie-id="movieId"
-          :parent-id="isReply ? comment.parentId : comment.id"
-          :reply-to="comment"
-          @success="handleReplySuccess"
+          :parent-id="comment.id"
+          :reply-to="comment.user?.username"
+          @submit="handleReplySubmit"
+          @cancel="showReplyEditor = false"
         />
       </div>
       
-      <!-- 回复列表 -->
-      <transition name="fade">
-        <div v-if="hasReplies" class="reply-list">
-          <div class="reply-count" v-if="!isReply">
-            {{ comment.replies.length }}条回复
-          </div>
-          <comment-item
-            v-for="reply in comment.replies"
-            :key="reply.id"
-            :comment="reply"
+      <div v-if="comment.replies?.length" class="replies-section">
+        <div 
+          v-for="reply in comment.replies" 
+          :key="reply.id"
+          class="reply-item"
+        >
+          <ReplyItem
+            :reply="reply"
             :movie-id="movieId"
-            :is-reply="true"
-            @reply-success="handleReplySuccess"
-            @delete-success="handleDeleteSuccess"
+            :parent-id="comment.id"
           />
         </div>
-      </transition>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { mapState, mapActions } from 'vuex'
+import { ref, computed } from 'vue'
+import { useStore } from 'vuex'
+import { ElMessageBox } from 'element-plus'
+import { ThumbsUp, ThumbsDown, ChatLineRound, Delete } from '@element-plus/icons-vue'
 import { formatDistanceToNow } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import CommentEditor from './CommentEditor.vue'
+import ReplyItem from './ReplyItem.vue'
 
 export default {
   name: 'CommentItem',
   
   components: {
-    CommentEditor
+    CommentEditor,
+    ReplyItem,
+    ThumbsUp,
+    ThumbsDown,
+    ChatLineRound,
+    Delete
   },
   
   props: {
     comment: {
       type: Object,
-      required: true,
-      validator: function(obj) {
-        return obj.id !== undefined && obj.content !== undefined
-      }
+      required: true
     },
     movieId: {
       type: [String, Number],
@@ -130,124 +127,117 @@ export default {
     }
   },
   
-  data() {
-    return {
-      showReplyEditor: false
-    }
-  },
-  
-  computed: {
-    ...mapState('user', ['currentUser']),
-    
-    canDelete() {
-      return this.currentUser && 
-        (this.currentUser.id === this.comment.userId || this.currentUser.role === 'admin')
-    },
+  setup(props) {
+    const store = useStore()
+    const showReplyEditor = ref(false)
 
-    hasReplies() {
-      return !this.isReply && Array.isArray(this.comment.replies) && this.comment.replies.length > 0
-    }
-  },
+    // 检查是否可以删除评论
+    const canDelete = computed(() => {
+      const currentUser = store.getters['user/currentUser']
+      return currentUser && (
+        currentUser.id === props.comment.user?.id ||
+        currentUser.role === 'ADMIN'
+      )
+    })
 
-  methods: {
-    ...mapActions('comment', [
-      'likeComment',
-      'dislikeComment',
-      'deleteComment'
-    ]),
-
-    formatTime(time) {
+    // 格式化时间
+    const formatTime = (time) => {
       if (!time) return ''
       return formatDistanceToNow(new Date(time), {
         addSuffix: true,
         locale: zhCN
       })
-    },
-    
-    async handleLike() {
-      if (!this.currentUser) {
-        this.$message.warning('请先登录')
-        return
-      }
+    }
 
+    // 处理点赞
+    const handleLike = async () => {
       try {
-        await this.likeComment({
-          commentId: this.comment.id,
-          movieId: this.movieId,
-          parentId: this.isReply ? this.comment.parentId : null
-        })
-        this.$message.success('点赞成功')
+        if (props.comment.liked) {
+          await store.dispatch('comment/unlikeComment', {
+            commentId: props.comment.id,
+            movieId: props.movieId,
+            parentId: props.isReply ? props.parentId : null
+          })
+        } else {
+          await store.dispatch('comment/likeComment', {
+            commentId: props.comment.id,
+            movieId: props.movieId,
+            parentId: props.isReply ? props.parentId : null
+          })
+        }
       } catch (error) {
-        console.error('点赞失败:', error)
-        this.$message.error('点赞失败，请稍后重试')
+        console.error('点赞操作失败:', error)
       }
-    },
-    
-    async handleDislike() {
-      if (!this.currentUser) {
-        this.$message.warning('请先登录')
-        return
-      }
+    }
 
+    // 处理点踩
+    const handleDislike = async () => {
       try {
-        await this.dislikeComment({
-          commentId: this.comment.id,
-          movieId: this.movieId,
-          parentId: this.isReply ? this.comment.parentId : null
-        })
-        this.$message.success('已取消点赞')
+        if (props.comment.disliked) {
+          await store.dispatch('comment/undislikeComment', {
+            commentId: props.comment.id,
+            movieId: props.movieId,
+            parentId: props.isReply ? props.parentId : null
+          })
+        } else {
+          await store.dispatch('comment/dislikeComment', {
+            commentId: props.comment.id,
+            movieId: props.movieId,
+            parentId: props.isReply ? props.parentId : null
+          })
+        }
       } catch (error) {
-        console.error('操作失败:', error)
-        this.$message.error('操作失败，请稍后重试')
+        console.error('点踩操作失败:', error)
       }
-    },
-    
-    handleReply() {
-      if (!this.currentUser) {
-        this.$message.warning('请先登录')
-        return
-      }
-      this.showReplyEditor = !this.showReplyEditor
-    },
-    
-    handleReplySuccess() {
-      this.showReplyEditor = false
-      this.$emit('reply-success')
-    },
-    
-    async handleDelete() {
+    }
+
+    // 处理删除
+    const handleDelete = async () => {
       try {
-        await this.$confirm('确定要删除这条评论吗？', '提示', {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          type: 'warning'
-        })
+        await ElMessageBox.confirm(
+          '确定要删除这条评论吗？',
+          '删除确认',
+          {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
 
-        await this.deleteComment({
-          commentId: this.comment.id,
-          movieId: this.movieId,
-          parentId: this.isReply ? this.comment.parentId : null
+        await store.dispatch('comment/deleteComment', {
+          commentId: props.comment.id,
+          movieId: props.movieId,
+          parentId: props.isReply ? props.parentId : null
         })
-
-        this.$emit('delete-success')
-        this.$message.success('删除成功')
       } catch (error) {
         if (error !== 'cancel') {
-          console.error('删除失败:', error)
-          this.$message.error('删除失败，请稍后重试')
+          console.error('删除评论失败:', error)
         }
       }
-    },
-
-    handleDeleteSuccess() {
-      this.$emit('delete-success')
     }
-  },
 
-  beforeUnmount() {
-    console.log('[CommentItem] Component unmounting, comment:', this.comment.id)
-    if (this.showReplyEditor) {
-      console.warn('[CommentItem] Reply editor was open on unmount')
+    // 处理回复提交
+    const handleReplySubmit = async (reply) => {
+      try {
+        await store.dispatch('comment/submitComment', {
+          ...reply,
+          movieId: props.movieId,
+          parentId: props.comment.id
+        })
+        showReplyEditor.value = false
+      } catch (error) {
+        console.error('提交回复失败:', error)
+      }
+    }
+
+    return {
+      showReplyEditor,
+      canDelete,
+      formatTime,
+      handleLike,
+      handleDislike,
+      handleDelete,
+      handleReplySubmit
     }
   }
 }
@@ -256,131 +246,133 @@ export default {
 <style lang="scss" scoped>
 .comment-item {
   display: flex;
-  padding: 20px 0;
-  border-bottom: 1px solid #eee;
-  
+  gap: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: var(--comment-hover-bg);
+  }
+
   &.is-reply {
-    padding: 15px 0;
-    margin-left: 20px;
-    border-bottom: none;
-    position: relative;
-    
-    &::before {
-      content: '';
-      position: absolute;
-      left: -10px;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background: #f0f0f0;
-    }
+    margin-left: 56px;
+    background-color: var(--comment-reply-bg);
+    border-radius: 6px;
   }
   
   .comment-avatar {
-    margin-right: 15px;
     flex-shrink: 0;
+
+    .el-avatar {
+      background: var(--el-color-primary);
+      color: #fff;
+      font-weight: bold;
+    }
   }
   
   .comment-content {
     flex: 1;
-    min-width: 0; // 防止内容溢出
-    
+    min-width: 0;
+
     .comment-header {
       display: flex;
-      align-items: center;
-      margin-bottom: 8px;
-      
-      .username {
-        font-weight: 500;
-        margin-right: 15px;
-        color: #333;
-      }
-
-      .reply-to {
-        color: #999;
-        margin: 0 5px;
-      }
-
-      .reply-username {
-        color: #409EFF;
-        margin-right: 15px;
-      }
-
-      .el-rate {
-        line-height: 1;
-      }
-    }
-    
-    .comment-text {
-      line-height: 1.6;
-      color: #333;
-      margin-bottom: 8px;
-      word-break: break-word;
-    }
-    
-    .comment-footer {
-      display: flex;
       justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      
-      .time {
-        color: #999;
-        font-size: 13px;
+      align-items: flex-start;
+      margin-bottom: 8px;
+
+      .comment-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+
+        .username {
+          font-weight: 600;
+          color: var(--comment-text);
+        }
+
+        .rating {
+          display: flex;
+          align-items: center;
+        }
+
+        .time {
+          color: var(--comment-text-light);
+          font-size: 12px;
+        }
       }
-      
-      .actions {
+
+      .comment-actions {
+        display: flex;
+        gap: 12px;
+
         .el-button {
-          margin-left: 15px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          color: var(--comment-action);
           padding: 0;
-          
-          &.active {
-            color: #409EFF;
-          }
-          
-          i {
-            margin-right: 3px;
+          height: auto;
+
+          &:hover {
+            color: var(--comment-action-hover);
           }
 
-          &:first-child {
-            margin-left: 0;
+          &.is-liked {
+            color: var(--el-color-primary);
+          }
+
+          &.is-disliked {
+            color: var(--el-color-danger);
+          }
+
+          &.delete-btn:hover {
+            color: var(--el-color-danger);
+          }
+
+          .el-icon {
+            margin-right: 4px;
           }
         }
       }
     }
-
-    .reply-editor {
-      margin: 12px 0;
-      padding: 12px;
-      background: #f8f9fa;
-      border-radius: 4px;
+    
+    .comment-text {
+      color: var(--comment-text);
+      line-height: 1.6;
+      margin-bottom: 12px;
+      word-break: break-word;
+      white-space: pre-wrap;
     }
     
-    .reply-list {
-      margin-top: 12px;
+    .reply-editor {
+      margin: 16px 0;
       padding: 12px;
-      background: #f8f9fa;
-      border-radius: 4px;
+      background-color: var(--comment-editor-bg);
+      border: 1px solid var(--comment-editor-border);
+      border-radius: 6px;
+      transition: all 0.3s ease;
 
-      .reply-count {
-        font-size: 13px;
-        color: #666;
-        margin-bottom: 12px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid #eee;
+      &:hover {
+        border-color: var(--el-color-primary);
+        box-shadow: 0 0 8px rgba(var(--el-color-primary-rgb), 0.2);
+      }
+    }
+
+    .replies-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--comment-divider);
+
+      .reply-item {
+        &:not(:last-child) {
+          margin-bottom: 16px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid var(--comment-divider);
+        }
       }
     }
   }
-}
-
-// 过渡动画
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 </style>

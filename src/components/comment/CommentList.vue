@@ -1,192 +1,168 @@
 <template>
   <div class="comment-list">
     <div class="comment-header">
-      <h3 class="title">评论 ({{ total }})</h3>
+      <h3 class="comment-title">
+        评论 
+        <span class="comment-count">({{ total }})</span>
+      </h3>
       <el-button 
-        type="text"
-        @click="scrollToEditor"
+        type="primary" 
+        size="small"
+        @click="showEditor = true"
+        :disabled="loading"
       >
         写评论
       </el-button>
     </div>
-    
-    <div class="comment-editor-section" ref="editor">
-      <comment-editor
+
+    <div v-if="showEditor" class="comment-editor-wrapper">
+      <CommentEditor
         :movie-id="movieId"
-        @success="handleCommentSuccess"
+        @submit="handleCommentSubmit"
+        @cancel="showEditor = false"
       />
     </div>
-    
-    <div v-loading="loading" class="comment-list-content">
-      <template v-if="comments.length">
-        <comment-item
-          v-for="comment in comments"
-          :key="comment.id"
-          :comment="comment"
-          :movie-id="movieId"
-          @reply-success="handleCommentSuccess"
-          @delete-success="handleCommentSuccess"
-        />
-        
-        <div class="pagination-wrapper">
-          <el-pagination
-            background
-            layout="prev, pager, next"
-            v-model:current-page="currentPage"
-            :page-size="pageSize"
-            :total="total"
-            @current-change="handlePageChange"
-          />
-        </div>
-      </template>
-      
-      <el-empty
-        v-else-if="!loading"
-        description="暂无评论"
+
+    <div v-if="loading" class="comment-loading">
+      <el-skeleton :rows="3" animated />
+    </div>
+
+    <div v-else-if="comments.length === 0" class="comment-empty">
+      <el-empty description="暂无评论" />
+    </div>
+
+    <div v-else class="comment-items">
+      <CommentItem
+        v-for="comment in comments"
+        :key="comment.id"
+        :comment="comment"
+        :movie-id="movieId"
+      />
+    </div>
+
+    <div class="comment-pagination" v-if="total > pageSize">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 30, 50]"
+        layout="total, sizes, prev, pager, next"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
       />
     </div>
   </div>
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
-import CommentEditor from './CommentEditor.vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useStore } from 'vuex'
 import CommentItem from './CommentItem.vue'
+import CommentEditor from './CommentEditor.vue'
 
 export default {
   name: 'CommentList',
   
   components: {
-    CommentEditor,
-    CommentItem
+    CommentItem,
+    CommentEditor
   },
-  
+
   props: {
     movieId: {
-      type: [Number, String],
-      required: true,
-      validator(value) {
-        if (!value) {
-          console.error('[CommentList] movieId is required but got:', value)
-          return false
-        }
-        return true
+      type: [String, Number],
+      required: true
+    }
+  },
+
+  emits: ['update:currentPage', 'update:pageSize'],
+
+  setup(props, { emit }) {
+    const store = useStore()
+    const showEditor = ref(false)
+    
+    // 从 store 获取状态
+    const comments = computed(() => store.getters['comment/commentsList'])
+    const total = computed(() => store.getters['comment/commentsTotal'])
+    const loading = computed(() => store.getters['comment/commentsLoading'])
+    const currentPage = computed({
+      get: () => store.getters['comment/currentPage'],
+      set: (val) => {
+        store.commit('comment/SET_PAGE', { currentPage: val, pageSize: pageSize.value })
+        emit('update:currentPage', val)
       }
-    }
-  },
-  
-  data() {
-    return {
-      currentPage: 1,
-      pageSize: 10,
-      error: null,
-      isInitialized: false
-    }
-  },
-  
-  computed: {
-    ...mapGetters('comment', [
-      'commentsList',
-      'commentsTotal',
-      'commentsLoading'
-    ]),
-    
-    comments() {
-      return this.commentsList
-    },
-    
-    total() {
-      return this.commentsTotal
-    },
-    
-    loading() {
-      return this.commentsLoading
-    }
-  },
-  
-  watch: {
-    movieId: {
-      handler(newId, oldId) {
-        console.log('[CommentList] movieId changed:', { newId, oldId })
-        if (newId !== oldId || !this.isInitialized) {
-          this.resetAndFetch()
-        }
-      },
-      immediate: true
-    }
-  },
+    })
+    const pageSize = computed({
+      get: () => store.getters['comment/pageSize'],
+      set: (val) => {
+        store.commit('comment/SET_PAGE', { currentPage: currentPage.value, pageSize: val })
+        emit('update:pageSize', val)
+      }
+    })
 
-  created() {
-    console.log('[CommentList] Component created for movieId:', this.movieId)
-  },
-  
-  methods: {
-    async fetchComments() {
-      console.log('[CommentList] Fetching comments:', {
-        movieId: this.movieId,
-        page: this.currentPage,
-        size: this.pageSize
-      })
-
+    // 获取评论列表
+    const fetchComments = async () => {
       try {
-        await this.$store.dispatch('comment/fetchComments', {
-          movieId: this.movieId,
-          page: this.currentPage,
-          size: this.pageSize
+        await store.dispatch('comment/fetchComments', {
+          movieId: props.movieId,
+          page: currentPage.value,
+          pageSize: pageSize.value
         })
-        
-        console.log('[CommentList] Comments fetched successfully:', {
-          total: this.total,
-          count: this.comments.length
-        })
-        
-        this.isInitialized = true
-        this.error = null
       } catch (error) {
-        console.error('[CommentList] Failed to fetch comments:', error)
-        this.error = error.message || '获取评论失败'
-        this.$message.error(this.error)
+        console.error('获取评论列表失败:', error)
       }
-    },
-    
-    handlePageChange(page) {
-      console.log('[CommentList] Page changed to:', page)
-      this.currentPage = page
-      this.fetchComments()
-      // 滚动到评论列表顶部
-      this.$el.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      })
-    },
-    
-    handleCommentSuccess() {
-      console.log('[CommentList] New comment submitted, refreshing list')
-      this.currentPage = 1
-      this.fetchComments()
-    },
-    
-    scrollToEditor() {
-      console.log('[CommentList] Scrolling to editor')
-      this.$refs.editor?.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      })
-    },
-
-    resetAndFetch() {
-      console.log('[CommentList] Resetting state and fetching new comments')
-      this.currentPage = 1
-      this.error = null
-      this.isInitialized = false
-      this.fetchComments()
     }
-  },
 
-  beforeUnmount() {
-    console.log('[CommentList] Component unmounting')
-    if (!this.isInitialized) {
-      console.warn('[CommentList] Component unmounted before initialization completed')
+    // 监听分页变化
+    watch([currentPage, pageSize], () => {
+      fetchComments()
+    })
+
+    // 处理评论提交
+    const handleCommentSubmit = async (comment) => {
+      try {
+        await store.dispatch('comment/submitComment', {
+          ...comment,
+          movieId: props.movieId
+        })
+        showEditor.value = false
+        // 如果不是第一页，跳转到第一页
+        if (currentPage.value !== 1) {
+          currentPage.value = 1
+        } else {
+          fetchComments()
+        }
+      } catch (error) {
+        console.error('提交评论失败:', error)
+      }
+    }
+
+    // 分页处理
+    const handleSizeChange = (val) => {
+      pageSize.value = val
+      if (currentPage.value !== 1) {
+        currentPage.value = 1
+      }
+    }
+
+    const handleCurrentChange = (val) => {
+      currentPage.value = val
+    }
+
+    onMounted(() => {
+      fetchComments()
+    })
+
+    return {
+      comments,
+      total,
+      loading,
+      showEditor,
+      currentPage,
+      pageSize,
+      handleCommentSubmit,
+      handleSizeChange,
+      handleCurrentChange
     }
   }
 }
@@ -194,32 +170,70 @@ export default {
 
 <style lang="scss" scoped>
 .comment-list {
-  padding: 20px;
-  background: #fff;
+  background-color: var(--comment-bg);
   border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
-  
+  padding: 20px;
+  box-shadow: var(--card-shadow);
+
   .comment-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
-    
-    .title {
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--comment-divider);
+
+    .comment-title {
       font-size: 18px;
-      font-weight: 500;
+      font-weight: 600;
+      color: var(--comment-text);
       margin: 0;
+
+      .comment-count {
+        font-size: 14px;
+        color: var(--comment-text-light);
+        margin-left: 5px;
+      }
     }
   }
-  
-  .comment-list-content {
-    min-height: 200px;
+
+  .comment-editor-wrapper {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: var(--comment-editor-bg);
+    border: 1px solid var(--comment-editor-border);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+
+    &:hover {
+      border-color: var(--el-color-primary);
+      box-shadow: 0 0 8px rgba(var(--el-color-primary-rgb), 0.2);
+    }
   }
-  
-  .pagination-wrapper {
+
+  .comment-loading {
+    padding: 20px 0;
+  }
+
+  .comment-empty {
+    padding: 40px 0;
+    color: var(--comment-text-light);
+  }
+
+  .comment-items {
+    > :not(:last-child) {
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--comment-divider);
+    }
+  }
+
+  .comment-pagination {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--comment-divider);
     display: flex;
     justify-content: center;
-    margin-top: 20px;
   }
 }
 </style>

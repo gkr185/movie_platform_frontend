@@ -1,12 +1,13 @@
 import { 
   getComments, 
-  submitComment, 
+  createComment,
   deleteComment,
   likeComment as likeCommentApi,
   dislikeComment as dislikeCommentApi,
   unlikeComment,
   undislikeComment
 } from '@/api/comments'
+import { getUserInfo } from '@/api/user'
 
 export default {
   namespaced: true,
@@ -215,15 +216,74 @@ export default {
         // 处理响应数据
         const { content: comments = [], totalElements: total = 0 } = response || {}
         
-        // 数据预处理
-        const processedComments = comments.map(comment => ({
-          ...comment,
-          likeCount: comment.likeCount || 0,
-          dislikeCount: comment.dislikeCount || 0,
-          rating: comment.rating || 0,
-          createTime: comment.createTime || new Date().toISOString(),
-          replies: comment.replies || []
+        // 获取所有评论和回复中的用户ID
+        const userIds = new Set()
+        comments.forEach(comment => {
+          if (comment.userId) userIds.add(comment.userId)
+          if (comment.replies) {
+            comment.replies.forEach(reply => {
+              if (reply.userId) userIds.add(reply.userId)
+            })
+          }
+        })
+
+        // 获取所有用户信息
+        const userInfoMap = new Map()
+        await Promise.all(Array.from(userIds).map(async userId => {
+          try {
+            const userInfo = await getUserInfo(userId)
+            userInfoMap.set(userId, userInfo)
+          } catch (error) {
+            console.error(`获取用户 ${userId} 信息失败:`, error)
+            // 设置默认用户信息
+            userInfoMap.set(userId, {
+              id: userId,
+              username: '未知用户',
+              avatar: '',
+              isVIP: false
+            })
+          }
         }))
+
+        // 数据预处理，添加用户信息
+        const processedComments = comments.map(comment => {
+          const userInfo = userInfoMap.get(comment.userId)
+          const processedComment = {
+            ...comment,
+            likeCount: comment.likeCount || 0,
+            dislikeCount: comment.dislikeCount || 0,
+            rating: comment.rating || 0,
+            createTime: comment.createTime || new Date().toISOString(),
+            user: userInfo || {
+              id: comment.userId,
+              username: '未知用户',
+              avatar: '',
+              isVIP: false
+            },
+            replies: comment.replies || []
+          }
+
+          // 处理回复的用户信息
+          if (processedComment.replies.length > 0) {
+            processedComment.replies = processedComment.replies.map(reply => {
+              const replyUserInfo = userInfoMap.get(reply.userId)
+              return {
+                ...reply,
+                likeCount: reply.likeCount || 0,
+                dislikeCount: reply.dislikeCount || 0,
+                createTime: reply.createTime || new Date().toISOString(),
+                user: replyUserInfo || {
+                  id: reply.userId,
+                  username: '未知用户',
+                  avatar: '',
+                  isVIP: false
+                }
+              }
+            }).sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
+          }
+
+          return processedComment
+        })
 
         commit('SET_COMMENTS', { 
           comments: processedComments, 
@@ -248,7 +308,7 @@ export default {
     },
 
     // 提交评论或回复
-    async submitComment({ commit }, { movieId, content, rating, parentId, replyTo }) {
+    async submitComment({ commit, rootState }, { movieId, content, rating, parentId, replyTo }) {
       console.log('[Vuex Comment] 开始提交评论:', {
         movieId,
         content: content?.substring(0, 20),
@@ -257,26 +317,56 @@ export default {
         replyTo
       })
 
+      // 获取当前用户ID
+      const userId = rootState.user?.user?.id
+      if (!userId) {
+        throw new Error('请先登录')
+      }
+
       try {
-        const comment = await submitComment({
-          movieId,
-          content,
-          rating,
-          parentId,
-          replyTo
+        const comment = await createComment({
+          movieId: Number(movieId),
+          userId: Number(userId),
+          content: content.trim(),
+          rating: Number(rating),
+          parentId: parentId ? Number(parentId) : 0
         })
 
         console.log('[Vuex Comment] 提交评论成功:', comment)
 
-        commit('ADD_COMMENT', {
+        // 获取用户信息
+        let userInfo
+        try {
+          userInfo = await getUserInfo(userId)
+        } catch (error) {
+          console.error('获取用户信息失败:', error)
+          userInfo = {
+            id: userId,
+            username: '未知用户',
+            avatar: '',
+            isVIP: false
+          }
+        }
+
+        // 如果后端返回的数据不完整，使用本地数据补充
+        const processedComment = {
           ...comment,
+          id: comment.id,
+          userId: userId,
+          movieId: movieId,
+          content: content,
+          rating: rating || 0,
+          parentId: parentId || 0,
           likeCount: 0,
           dislikeCount: 0,
-          rating: rating || 0,
+          status: 1,
           createTime: comment.createTime || new Date().toISOString(),
+          user: userInfo,
           replies: []
-        })
-        return comment
+        }
+
+        commit('ADD_COMMENT', processedComment)
+        return processedComment
       } catch (error) {
         console.error('[Vuex Comment] 提交评论失败:', error)
         throw error
