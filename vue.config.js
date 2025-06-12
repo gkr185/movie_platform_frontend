@@ -1,17 +1,11 @@
 const { defineConfig } = require('@vue/cli-service')
+require('events').EventEmitter.defaultMaxListeners = 0; // 解除限制
 
 module.exports = defineConfig({
   transpileDependencies: true,
   devServer: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        pathRewrite: {
-          '^/api': '/api'
-        },
-        logLevel: 'debug'
-      },
+      
       '/api/movies': {
         target: 'http://localhost:8061',
         changeOrigin: true,
