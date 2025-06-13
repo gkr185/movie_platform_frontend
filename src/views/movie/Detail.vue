@@ -267,14 +267,28 @@ export default {
       
       try {
         if (isFavorite.value) {
-          await store.dispatch('movie/removeFromFavorites', movie.value.id)
+          await store.dispatch('user/removeFromFavorites', movie.value.id)
           ElMessage.success('已取消收藏')
         } else {
-          await store.dispatch('movie/addToFavorites', movie.value)
+          // 检查是否已经收藏过
+          const favorites = await store.dispatch('user/fetchFavorites')
+          const isAlreadyFavorite = favorites.some(fav => fav.id === movie.value.id)
+          
+          if (isAlreadyFavorite) {
+            ElMessage.success('已收藏')
+            return
+          }
+          
+          await store.dispatch('user/addToFavorites', movie.value)
           ElMessage.success('收藏成功')
         }
       } catch (error) {
-        ElMessage.error('操作失败，请重试')
+        console.error('收藏操作失败:', error)
+        if (error.response?.status === 500) {
+          ElMessage.warning('该影片已经收藏过了')
+        } else {
+          ElMessage.error('操作失败，请重试')
+        }
       }
     }
 

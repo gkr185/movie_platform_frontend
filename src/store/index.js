@@ -5,6 +5,7 @@ import user from './modules/user'
 import comment from './modules/comment'
 import ad from './modules/ad'
 import category from './modules/category'
+import news from './modules/news'
 
 export default createStore({
   state: {
@@ -136,6 +137,7 @@ export default createStore({
     user,
     comment,
     ad,
-    category
+    category,
+    news
   }
 })

@@ -4,13 +4,18 @@
       <div class="history-header">
         <h2>观看历史</h2>
         <div class="header-actions">
-          <el-button type="danger" plain @click="handleClearHistory" :disabled="!watchHistory.length">
+          <el-button 
+            type="danger" 
+            plain 
+            @click="handleClearHistory" 
+            :disabled="!historyList?.length"
+          >
             清空历史
           </el-button>
         </div>
       </div>
 
-      <el-empty v-if="!watchHistory.length" description="暂无观看历史" />
+      <el-empty v-if="!historyList?.length" description="暂无观看历史" />
 
       <div v-else class="history-list">
         <div class="toolbar">
@@ -38,29 +43,29 @@
           </el-button-group>
         </div>
 
-        <el-timeline>
+        <el-timeline v-loading="loading">
           <el-timeline-item
             v-for="item in filteredHistory"
             :key="item.id"
-            :timestamp="formatTime(item.watchTime)"
+            :timestamp="formatTime(item.createTime)"
             placement="top"
           >
             <el-card class="history-card">
               <div class="history-content">
-                <img :src="item.cover" class="history-cover" @click="handleContinueWatch(item)">
+                <img :src="item.posterUrl" class="history-cover" @click="handleContinueWatch(item)">
                 <div class="history-info">
                   <h3>{{ item.title }}</h3>
                   <div class="meta-info">
-                    <span class="quality">{{ item.quality }}</span>
-                    <span class="duration">{{ item.duration }}</span>
+                    <span class="genres">{{ item.genres }}</span>
+                    <span class="duration">{{ item.runtime }}分钟</span>
                   </div>
                   <div class="progress-info">
                     <div class="progress-text">
-                      观看至 {{ formatLastPosition(item.lastPosition) }}
-                      <span class="progress-percent">({{ formatProgress(item.progress) }})</span>
+                      观看至 {{ formatLastPosition(item.progress) }}
+                      <span class="progress-percent">({{ formatProgress(item) }})</span>
                     </div>
                     <el-progress 
-                      :percentage="item.progress * 100" 
+                      :percentage="(item.progress / item.runtime) * 100" 
                       :format="() => ''" 
                       :stroke-width="4"
                     />
@@ -84,7 +89,7 @@
         </el-timeline>
 
         <div class="load-more" v-if="hasMore">
-          <el-button type="text" @click="loadMore">加载更多</el-button>
+          <el-button type="text" @click="loadMore" :loading="loading">加载更多</el-button>
         </div>
       </div>
     </template>
@@ -93,7 +98,7 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
@@ -109,52 +114,65 @@ export default {
     const currentFilter = ref('all')
     const pageSize = ref(10)
     const currentPage = ref(1)
+    const loading = ref(false)
     
     const isLoggedIn = computed(() => store.getters['user/isLoggedIn'])
-    const watchHistory = computed(() => store.getters['user/watchHistory'])
+    const historyList = computed(() => store.getters['user/historyList'] || [])
+    const historyTotal = computed(() => store.getters['user/historyTotal'] || 0)
 
     // 根据时间筛选历史记录
     const filteredHistory = computed(() => {
-      let filtered = [...watchHistory.value]
+      if (!historyList.value) return []
+      
+      let filtered = [...historyList.value]
       
       switch (currentFilter.value) {
         case 'today':
           filtered = filtered.filter(item => 
-            isToday(new Date(item.watchTime))
+            isToday(new Date(item.createTime))
           )
           break
         case 'week':
           filtered = filtered.filter(item => 
-            isThisWeek(new Date(item.watchTime), { locale: zhCN })
+            isThisWeek(new Date(item.createTime), { locale: zhCN })
           )
           break
         case 'month':
           filtered = filtered.filter(item => 
-            isThisMonth(new Date(item.watchTime))
+            isThisMonth(new Date(item.createTime))
           )
           break
       }
       
-      return filtered.slice(0, currentPage.value * pageSize.value)
+      return filtered
     })
 
     const hasMore = computed(() => {
-      const filtered = watchHistory.value.filter(item => {
-        switch (currentFilter.value) {
-          case 'today':
-            return isToday(new Date(item.watchTime))
-          case 'week':
-            return isThisWeek(new Date(item.watchTime), { locale: zhCN })
-          case 'month':
-            return isThisMonth(new Date(item.watchTime))
-          default:
-            return true
-        }
-      })
-      return filtered.length > currentPage.value * pageSize.value
+      return (historyTotal.value || 0) > currentPage.value * pageSize.value
     })
 
+    // 获取观看历史列表
+    const fetchHistoryList = async () => {
+      if (!isLoggedIn.value) return
+      
+      try {
+        loading.value = true
+        const { records, total } = await store.dispatch('user/fetchHistoryList', {
+          page: currentPage.value - 1, // 后端分页从0开始
+          size: pageSize.value
+        })
+        console.log('获取到的观看历史:', { records, total })
+      } catch (error) {
+        console.error('获取观看历史失败:', error)
+        ElMessage.error('获取观看历史失败')
+      } finally {
+        loading.value = false
+      }
+    }
+
     const handleClearHistory = async () => {
+      if (!historyList.value?.length) return
+      
       try {
         await ElMessageBox.confirm(
           '确定要清空所有观看历史吗？此操作不可恢复。',
@@ -165,10 +183,11 @@ export default {
             type: 'warning'
           }
         )
-        await store.dispatch('user/clearHistory')
+        await store.dispatch('user/clearAllHistory')
         ElMessage.success('观看历史已清空')
       } catch (error) {
         if (error !== 'cancel') {
+          console.error('清空历史失败:', error)
           ElMessage.error('操作失败，请重试')
         }
       }
@@ -176,9 +195,10 @@ export default {
 
     const handleRemoveHistory = async (movieId) => {
       try {
-        await store.dispatch('user/removeFromHistory', movieId)
+        await store.dispatch('user/deleteHistory', movieId)
         ElMessage.success('记录已删除')
       } catch (error) {
+        console.error('删除历史记录失败:', error)
         ElMessage.error('删除失败，请重试')
       }
     }
@@ -189,36 +209,61 @@ export default {
 
     const formatTime = (time) => {
       if (!time) return ''
-      return format(new Date(time), 'yyyy-MM-dd HH:mm')
+      try {
+        return format(new Date(time), 'yyyy-MM-dd HH:mm')
+      } catch (error) {
+        console.error('时间格式化失败:', error)
+        return ''
+      }
     }
 
-    const formatProgress = (progress) => {
-      if (!progress) return '0%'
-      return `${Math.round(progress * 100)}%`
+    const formatProgress = (item) => {
+      if (!item?.progress || !item?.runtime) return '0%'
+      try {
+        const percentage = (item.progress / item.runtime) * 100
+        return `${Math.round(percentage)}%`
+      } catch (error) {
+        console.error('进度计算失败:', error)
+        return '0%'
+      }
     }
 
     const formatLastPosition = (seconds) => {
       if (!seconds) return '0:00'
-      const minutes = Math.floor(seconds / 60)
-      const remainingSeconds = Math.floor(seconds % 60)
-      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+      try {
+        const minutes = Math.floor(seconds / 60)
+        const remainingSeconds = Math.floor(seconds % 60)
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+      } catch (error) {
+        console.error('时间格式化失败:', error)
+        return '0:00'
+      }
     }
 
     const setFilter = (filter) => {
       currentFilter.value = filter
       currentPage.value = 1
+      fetchHistoryList()
     }
 
     const loadMore = () => {
       currentPage.value++
+      fetchHistoryList()
     }
+
+    onMounted(() => {
+      if (isLoggedIn.value) {
+        fetchHistoryList()
+      }
+    })
 
     return {
       isLoggedIn,
-      watchHistory,
+      historyList,
       filteredHistory,
       currentFilter,
       hasMore,
+      loading,
       handleClearHistory,
       handleRemoveHistory,
       handleContinueWatch,

@@ -102,11 +102,27 @@ export const getNewMovies = async () => {
   }
 }
 
+// 按关键词搜索电影
+export const searchMovies = async (keyword) => {
+  try {
+    console.log('搜索电影，关键词:', keyword)
+    const response = await movieApi.get(API_URLS.MOVIE.SEARCH, {
+      params: { keyword }
+    })
+    console.log('搜索结果:', response.data)
+    return response.data
+  } catch (error) {
+    console.error('搜索电影失败:', error.message)
+    throw error
+  }
+}
+
 export default {
   getMovieDetail,
   getMoviesByCategory,
   getMovieCategories,
   getHotMovies,
   getRecommendedMovies,
-  getNewMovies
+  getNewMovies,
+  searchMovies
 } 

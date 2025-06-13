@@ -1,11 +1,14 @@
 import { ElMessage } from 'element-plus'
-import { getMovieDetail, getMoviesByCategory, getMovieCategories } from '@/api/movie'
+import { getMovieDetail, getMoviesByCategory, getMovieCategories, searchMovies } from '@/api/movie'
 
 const state = {
   currentMovie: null,
   favorites: [],
   watchProgress: new Map(), // 观看进度
   recommendedMovies: [],
+  searchResults: [], // 搜索结果
+  searchLoading: false, // 搜索加载状态
+  searchError: null, // 搜索错误信息
   playbackState: {
     currentTime: 0,
     duration: 0,
@@ -20,6 +23,9 @@ const getters = {
   isFavorite: state => movieId => state.favorites.some(item => item.id === movieId),
   watchProgress: state => state.watchProgress,
   recommendedMovies: state => state.recommendedMovies,
+  searchResults: state => state.searchResults,
+  searchLoading: state => state.searchLoading,
+  searchError: state => state.searchError,
   playbackState: state => state.playbackState,
   
   // 转换API电影数据为前端所需格式
@@ -94,6 +100,15 @@ const mutations = {
       volume: state.playbackState.volume, // 保持音量设置
       quality: '1080p'
     }
+  },
+  SET_SEARCH_RESULTS(state, results) {
+    state.searchResults = results
+  },
+  SET_SEARCH_LOADING(state, loading) {
+    state.searchLoading = loading
+  },
+  SET_SEARCH_ERROR(state, error) {
+    state.searchError = error
   }
 }
 
@@ -247,6 +262,27 @@ const actions = {
     } catch (error) {
       console.error('开始播放失败:', error)
       throw error
+    }
+  },
+
+  // 搜索电影
+  async searchMovies({ commit, getters }, keyword) {
+    try {
+      commit('SET_SEARCH_LOADING', true)
+      commit('SET_SEARCH_ERROR', null)
+      
+      const results = await searchMovies(keyword)
+      const formattedResults = results.map(movie => getters.movieDisplayData(movie))
+      
+      commit('SET_SEARCH_RESULTS', formattedResults)
+      return formattedResults
+    } catch (error) {
+      console.error('搜索电影失败:', error)
+      commit('SET_SEARCH_ERROR', error.message)
+      ElMessage.error('搜索电影失败，请稍后重试')
+      return []
+    } finally {
+      commit('SET_SEARCH_LOADING', false)
     }
   }
 }

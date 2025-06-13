@@ -27,37 +27,31 @@
           <el-input
             v-model="searchKeyword"
             placeholder="搜索电影"
-            prefix-icon="el-icon-search"
+            :prefix-icon="Search"
             @keyup.enter="handleSearch"
             @focus="showSearchHistory = true"
             clearable
+            :loading="searchLoading"
           >
             <template #append>
-              <el-button @click="handleSearch">搜索</el-button>
+              <el-button @click="handleSearch" :loading="searchLoading">搜索</el-button>
             </template>
           </el-input>
           
           <!-- 搜索历史 -->
-          <div 
-            v-if="showSearchHistory && searchHistory.length" 
-            class="search-history"
-            v-click-outside="hideSearchHistory"
-          >
+          <div v-if="showSearchHistory && searchHistory.length > 0" class="search-history">
             <div class="history-header">
               <span>搜索历史</span>
-              <el-button 
-                type="text" 
-                @click="clearSearchHistory"
-              >清空</el-button>
+              <el-button type="text" @click="clearSearchHistory">清空</el-button>
             </div>
             <div class="history-list">
-              <div 
-                v-for="item in searchHistory" 
-                :key="item"
+              <div
+                v-for="(item, index) in searchHistory"
+                :key="index"
                 class="history-item"
                 @click="useHistoryItem(item)"
               >
-                <el-icon><Timer /></el-icon>
+                <el-icon><Clock /></el-icon>
                 <span>{{ item }}</span>
               </div>
             </div>
@@ -112,7 +106,7 @@
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
-import { Timer, Moon, Sunny, UserFilled } from '@element-plus/icons-vue'
+import { Search, Clock, Timer, Moon, Sunny, UserFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 export default {
@@ -137,7 +131,7 @@ export default {
       { path: '/news', text: '资讯' }
     ]
     
-    const searchHistory = computed(() => store.state.user.searchHistory || [])
+    const searchHistory = ref(JSON.parse(localStorage.getItem('searchHistory') || '[]'))
     const currentTheme = computed(() => store.state.theme)
     const isLoggedIn = computed(() => store.getters['user/isLoggedIn'])
     const userInfo = computed(() => store.getters['user/userInfo'])
@@ -145,30 +139,51 @@ export default {
     const userAvatar = computed(() => userInfo.value?.avatar || '')
     const isVIP = computed(() => store.getters['user/isVIP'])
     
-    const handleSearch = () => {
-      const keyword = searchKeyword.value.trim()
-      if (keyword) {
-        store.dispatch('user/addSearchHistory', keyword)
+    const searchLoading = computed(() => store.getters['movie/searchLoading'])
+    const searchError = computed(() => store.getters['movie/searchError'])
+    
+    const handleSearch = async () => {
+      if (!searchKeyword.value.trim()) {
+        ElMessage.warning('请输入搜索关键词')
+        return
+      }
+
+      try {
+        // 保存到搜索历史
+        if (!searchHistory.value.includes(searchKeyword.value)) {
+          searchHistory.value.unshift(searchKeyword.value)
+          if (searchHistory.value.length > 10) {
+            searchHistory.value.pop()
+          }
+          localStorage.setItem('searchHistory', JSON.stringify(searchHistory.value))
+        }
+
+        // 执行搜索
+        const results = await store.dispatch('movie/searchMovies', searchKeyword.value)
+        
+        // 跳转到搜索结果页
         router.push({
           path: '/search',
-          query: { keyword }
+          query: { keyword: searchKeyword.value }
         })
+        
+        // 隐藏搜索历史
         showSearchHistory.value = false
+      } catch (error) {
+        console.error('搜索失败:', error)
+        ElMessage.error(searchError.value || '搜索失败，请稍后重试')
       }
     }
     
-    const useHistoryItem = (keyword) => {
-      searchKeyword.value = keyword
+    const useHistoryItem = (item) => {
+      searchKeyword.value = item
       handleSearch()
     }
     
-    const clearSearchHistory = async () => {
-      try {
-        await store.dispatch('user/clearSearchHistory')
-        ElMessage.success('搜索历史已清空')
-      } catch (error) {
-        ElMessage.error('清空搜索历史失败')
-      }
+    const clearSearchHistory = () => {
+      searchHistory.value = []
+      localStorage.removeItem('searchHistory')
+      showSearchHistory.value = false
     }
     
     const hideSearchHistory = () => {
@@ -211,6 +226,8 @@ export default {
       username,
       userAvatar,
       isVIP,
+      searchLoading,
+      searchError,
       handleSearch,
       useHistoryItem,
       clearSearchHistory,

@@ -88,21 +88,21 @@
             <h3>观影详情</h3>
             <el-button type="text" @click="$router.push('/user/history')">查看更多</el-button>
           </div>
-          <el-table :data="watchHistory?.slice(0, 5)" style="width: 100%">
-            <el-table-column prop="date" label="观看日期" width="180">
+          <el-table :data="historyList?.slice(0, 5)" style="width: 100%">
+            <el-table-column prop="watchTime" label="观看日期" width="180">
               <template #default="{ row }">
-                {{ new Date(row.watchTime).toLocaleString('zh-CN') }}
+                {{ formatDate(row.watchTime) }}
               </template>
             </el-table-column>
             <el-table-column prop="title" label="影片名称"></el-table-column>
             <el-table-column prop="duration" label="观看时长" width="120">
               <template #default="{ row }">
-                {{ Math.floor(row.duration / 60) }}小时{{ row.duration % 60 }}分
+                {{ formatDuration(row.duration) }}
               </template>
             </el-table-column>
             <el-table-column prop="progress" label="观看进度" width="120">
               <template #default="{ row }">
-                {{ Math.round(row.progress * 100) }}%
+                {{ formatProgress(row.progress) }}
               </template>
             </el-table-column>
             <el-table-column prop="category" label="分类" width="120"></el-table-column>
@@ -125,6 +125,7 @@ import {
   GridComponent
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import { ElMessage } from 'element-plus'
 
 // 注册必需的组件
 echarts.use([
@@ -144,8 +145,9 @@ export default {
     const timeRange = ref('month')
     const trendChart = ref(null)
     const pieChart = ref(null)
+    const loading = ref(false)
 
-    const watchHistory = computed(() => store.getters['user/watchHistory'] || [])
+    const historyList = computed(() => store.getters['user/historyList'] || [])
     const watchStats = computed(() => store.getters['user/watchStats'] || {
       totalDuration: 0,
       totalCount: 0,
@@ -165,6 +167,51 @@ export default {
       { value: 0, name: '剧情' },
       { value: 0, name: '其他' }
     ])
+
+    // 获取观看历史列表
+    const fetchHistoryList = async () => {
+      if (!store.getters['user/isLoggedIn']) return
+      
+      try {
+        loading.value = true
+        const { records, total } = await store.dispatch('user/fetchHistoryList', {
+          page: 0, // 后端分页从0开始
+          size: 5
+        })
+        console.log('获取到的观看历史:', { records, total })
+      } catch (error) {
+        console.error('获取观看历史失败:', error)
+        ElMessage.error('获取观看历史失败')
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // 获取观影统计数据
+    const fetchWatchStats = async (range) => {
+      try {
+        loading.value = true
+        await store.dispatch('user/fetchWatchStats', range)
+      } catch (error) {
+        console.error('获取观影统计失败:', error)
+        ElMessage.error('获取观影统计失败')
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // 获取观影偏好数据
+    const fetchWatchPreferences = async () => {
+      try {
+        loading.value = true
+        await store.dispatch('user/fetchWatchPreferences')
+      } catch (error) {
+        console.error('获取观影偏好失败:', error)
+        ElMessage.error('获取观影偏好失败')
+      } finally {
+        loading.value = false
+      }
+    }
 
     const initTrendChart = async () => {
       try {
@@ -285,9 +332,61 @@ export default {
       pieChart.value?.resize()
     }
 
+    const handleTimeRangeChange = async (newRange) => {
+      await fetchWatchStats(newRange)
+      if (trendChart.value) {
+        initTrendChart()
+      }
+    }
+
+    // 格式化日期
+    const formatDate = (dateStr) => {
+      if (!dateStr) return '未知时间'
+      try {
+        const date = new Date(dateStr)
+        if (isNaN(date.getTime())) return '未知时间'
+        return date.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      } catch (error) {
+        console.error('日期格式化错误:', error)
+        return '未知时间'
+      }
+    }
+
+    // 格式化时长
+    const formatDuration = (duration) => {
+      if (!duration && duration !== 0) return '未知时长'
+      try {
+        const hours = Math.floor(duration / 60)
+        const minutes = duration % 60
+        return `${hours}小时${minutes}分`
+      } catch (error) {
+        console.error('时长格式化错误:', error)
+        return '未知时长'
+      }
+    }
+
+    // 格式化进度
+    const formatProgress = (progress) => {
+      if (!progress && progress !== 0) return '0%'
+      try {
+        const percentage = Math.round(progress * 100)
+        return `${percentage}%`
+      } catch (error) {
+        console.error('进度格式化错误:', error)
+        return '0%'
+      }
+    }
+
     onMounted(async () => {
-      await store.dispatch('user/fetchWatchStats', timeRange.value)
-      await store.dispatch('user/fetchWatchPreferences')
+      await fetchWatchStats(timeRange.value)
+      await fetchWatchPreferences()
+      await fetchHistoryList()
       
       initTrendChart()
       initPieChart()
@@ -295,18 +394,16 @@ export default {
       window.addEventListener('resize', handleResize)
     })
 
-    const handleTimeRangeChange = async (newRange) => {
-      await store.dispatch('user/fetchWatchStats', newRange)
-      if (trendChart.value) {
-        initTrendChart()
-      }
-    }
-
     return {
       timeRange,
-      watchHistory,
+      historyList,
       watchStats,
-      handleTimeRangeChange
+      watchPreferences,
+      loading,
+      handleTimeRangeChange,
+      formatDate,
+      formatDuration,
+      formatProgress
     }
   }
 }

@@ -17,12 +17,18 @@ const routes = [
   {
     path: '/news',
     name: 'News',
-    component: () => import('@/views/news/Index.vue')
+    component: () => import('@/views/news/Index.vue'),
+    meta: {
+      title: '新闻资讯'
+    }
   },
   {
-    path: '/news/detail/:id',
+    path: '/news/:id',
     name: 'NewsDetail',
-    component: () => import('@/views/news/Detail.vue')
+    component: () => import('@/views/news/Detail.vue'),
+    meta: {
+      title: '新闻详情'
+    }
   },
   {
     // 电影相关路由
@@ -131,6 +137,15 @@ const routes = [
     component: () => import('@/views/category/Index.vue'),
     meta: {
       title: '电影分类',
+      keepAlive: true
+    }
+  },
+  {
+    path: '/search',
+    name: 'Search',
+    component: () => import('@/views/Search.vue'),
+    meta: {
+      title: '搜索结果',
       keepAlive: true
     }
   },

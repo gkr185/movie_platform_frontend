@@ -1,54 +1,76 @@
 // 广告状态管理模块
+import { getImageAds, getVideoAds } from '@/api/ad'
+import { ElMessage } from 'element-plus'
+
 const state = {
-  // 广告列表
-  adList: [
-    {
-      id: 1,
-      name: '前置广告1',
-      type: 'pre-roll', // 广告类型：pre-roll（前置）, mid-roll（中置）, post-roll（后置）
-      url: '/uploads/ads/pre-roll.mp4',
-      duration: 30,
-      skipAfter: 15,
-      priority: 1,
-      link: 'https://df.qq.com/main.shtml', // 广告跳转链接
-      clickText: '点击了解更多' // 点击提示文本
-    }
-  ],
-  
+  // 图片广告列表
+  imageAds: [],
+  // 当前视频广告
+  currentVideoAd: null,
+  // 广告加载状态
+  loading: false,
+  // 错误信息
+  error: null,
   // 广告播放历史
   playHistory: new Map(), // movieId -> adId[]
-  
-  // 当前播放的广告
-  currentAd: null
 }
 
 const getters = {
-  // 获取指定类型的广告列表
-  getAdsByType: (state) => (type) => {
-    return state.adList.filter(ad => ad.type === type)
+  // 获取所有图片广告
+  imageAds: state => state.imageAds,
+  
+  // 获取当前视频广告
+  currentVideoAd: state => {
+    console.log('获取当前视频广告状态:', state.currentVideoAd)
+    return state.currentVideoAd
   },
-
-  // 获取当前广告
-  currentAd: (state, getters, rootState) => {
-    if (state.currentAd) {
-      return {
-        ...state.currentAd,
-        url: rootState.baseURL + state.currentAd.url // 拼接完整URL
-      }
-    }
-    return null
-  },
-
+  
+  // 获取加载状态
+  loading: state => state.loading,
+  
+  // 获取错误信息
+  error: state => state.error,
+  
   // 获取电影已播放的广告历史
-  getMovieAdHistory: (state) => (movieId) => {
+  getMovieAdHistory: state => movieId => {
     return state.playHistory.get(movieId) || []
+  },
+
+  // 获取指定位置的图片广告
+  getImageAdsByPosition: state => position => {
+    return state.imageAds.filter(ad => ad.position === position)
   }
 }
 
 const mutations = {
-  // 设置当前广告
-  SET_CURRENT_AD(state, ad) {
-    state.currentAd = ad
+  // 设置图片广告列表
+  SET_IMAGE_ADS(state, ads) {
+    console.log('设置图片广告数据:', ads)
+    state.imageAds = ads
+  },
+
+  // 设置当前视频广告
+  SET_CURRENT_VIDEO_AD(state, ad) {
+    console.log('设置当前视频广告:', ad)
+    state.currentVideoAd = ad
+  },
+
+  // 清除当前视频广告
+  CLEAR_CURRENT_VIDEO_AD(state) {
+    console.log('清除当前视频广告')
+    state.currentVideoAd = null
+  },
+
+  // 设置加载状态
+  SET_LOADING(state, status) {
+    console.log('设置加载状态:', status)
+    state.loading = status
+  },
+
+  // 设置错误信息
+  SET_ERROR(state, error) {
+    console.log('设置错误状态:', error)
+    state.error = error
   },
 
   // 记录广告播放历史
@@ -66,38 +88,50 @@ const mutations = {
 }
 
 const actions = {
-  // 为电影选择合适的广告
-  async selectAdForMovie({ state, commit, getters }, { movieId, type = 'pre-roll' }) {
-    // 获取该类型的广告列表
-    const ads = getters.getAdsByType(type)
-    if (!ads.length) return null
-
-    // 获取该电影已播放过的广告
-    const playedAds = getters.getMovieAdHistory(movieId)
-    
-    // 优先选择未播放过的广告，按优先级排序
-    let selectedAd = ads
-      .filter(ad => !playedAds.includes(ad.id))
-      .sort((a, b) => a.priority - b.priority)[0]
-
-    // 如果所有广告都播放过，则重新从头开始
-    if (!selectedAd) {
-      selectedAd = ads.sort((a, b) => a.priority - b.priority)[0]
-      // 清除历史记录
-      commit('CLEAR_MOVIE_HISTORY', movieId)
+  // 获取图片广告列表
+  async fetchImageAds({ commit }) {
+    console.log('开始获取图片广告')
+    commit('SET_LOADING', true)
+    try {
+      const response = await getImageAds()
+      console.log('获取图片广告响应:', response)
+      if (response.data) {
+        commit('SET_IMAGE_ADS', response.data)
+      }
+    } catch (error) {
+      console.error('获取图片广告失败:', error)
+      commit('SET_ERROR', error.message)
+    } finally {
+      commit('SET_LOADING', false)
     }
-
-    if (selectedAd) {
-      commit('SET_CURRENT_AD', selectedAd)
-      commit('ADD_TO_HISTORY', { movieId, adId: selectedAd.id })
-    }
-
-    return selectedAd
   },
 
-  // 清除当前广告
-  clearCurrentAd({ commit }) {
-    commit('SET_CURRENT_AD', null)
+  // 获取视频广告
+  async fetchVideoAds({ commit }) {
+    console.log('开始获取视频广告')
+    commit('SET_LOADING', true)
+    try {
+      const response = await getVideoAds()
+      console.log('获取视频广告响应:', response)
+      if (response) {
+        console.log('设置视频广告数据:', response)
+        commit('SET_CURRENT_VIDEO_AD', response)
+      } else {
+        console.warn('视频广告响应数据为空')
+        commit('SET_CURRENT_VIDEO_AD', null)
+      }
+    } catch (error) {
+      console.error('获取视频广告失败:', error)
+      commit('SET_ERROR', error.message)
+      commit('SET_CURRENT_VIDEO_AD', null)
+    } finally {
+      commit('SET_LOADING', false)
+    }
+  },
+
+  // 清除当前视频广告
+  clearCurrentVideoAd({ commit }) {
+    commit('CLEAR_CURRENT_VIDEO_AD')
   }
 }
 

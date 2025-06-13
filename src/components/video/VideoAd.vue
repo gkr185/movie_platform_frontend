@@ -3,19 +3,19 @@
     <!-- 广告点击区域 -->
     <div 
       class="ad-click-area"
-      v-if="currentAd?.link"
+      v-if="currentVideoAd?.linkUrl"
       @click="handleAdClick"
     >
       <div class="click-tip" v-if="showClickTip">
         <el-icon><Link /></el-icon>
-        {{ currentAd.clickText || '点击查看详情' }}
+        点击查看详情
       </div>
     </div>
 
     <video
       ref="adPlayer"
       class="ad-player"
-      :src="currentAd?.url"
+      :src="currentVideoAd?.videoUrl"
       @timeupdate="handleTimeUpdate"
       @ended="handleAdEnded"
       @loadedmetadata="handleAdLoaded"
@@ -35,9 +35,10 @@
     <!-- 广告控制栏 -->
     <div class="ad-controls">
       <div class="ad-info">
-        <span class="ad-tag">{{ currentAd?.name || '广告' }}</span>
+        <span class="ad-tag">广告</span>
+        <span class="ad-title">{{ currentVideoAd?.title }}</span>
         <span class="ad-duration" v-if="!isVIP && !canSkip">
-          {{ Math.max(0, Math.ceil(currentAd?.skipAfter - currentTime)) }}秒后可跳过
+          {{ Math.max(0, Math.ceil(skipAfter - currentTime)) }}秒后可跳过
         </span>
         <span class="ad-duration" v-else-if="!isVIP && canSkip">
           点击跳过广告
@@ -60,198 +61,174 @@
     </div>
 
     <!-- 加载提示 -->
-    <div v-if="isLoading" class="ad-loading">
+    <div v-if="loading" class="ad-loading">
       <el-icon class="loading-icon" :size="32"><Loading /></el-icon>
       <span>广告加载中...</span>
     </div>
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useStore } from 'vuex'
 import { Loading, Link } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
-export default {
-  name: 'VideoAd',
-  components: {
-    Loading,
-    Link
-  },
-  props: {
-    movieId: {
-      type: [String, Number],
-      required: true
-    }
-  },
-  emits: ['skip', 'end'],
-  setup(props, { emit }) {
-    const store = useStore()
-    const adPlayer = ref(null)
-    const visible = ref(true)
-    const currentTime = ref(0)
-    const isLoading = ref(true)
-    const showClickTip = ref(false)
-    
-    // 从 Vuex 获取当前广告
-    const currentAd = computed(() => store.getters['ad/currentAd'])
-    
-    // 是否是VIP用户
-    const isVIP = computed(() => store.getters['user/isVIP'])
-    
-    // 是否可以跳过广告
-    const canSkip = computed(() => 
-      isVIP.value || (currentAd.value && currentTime.value >= currentAd.value.skipAfter)
-    )
+const props = defineProps({
+  movieId: {
+    type: [String, Number],
+    required: true
+  }
+})
 
-    // 处理鼠标移入
-    const handleMouseOver = () => {
-      if (currentAd.value?.link) {
-        showClickTip.value = true
-      }
-    }
+const emit = defineEmits(['skip', 'end'])
 
-    // 处理鼠标移出
-    const handleMouseOut = () => {
-      showClickTip.value = false
-    }
+const store = useStore()
+const adPlayer = ref(null)
+const visible = ref(true)
+const currentTime = ref(0)
+const showClickTip = ref(false)
+const skipAfter = 15 // 15秒后可跳过
 
-    // 处理广告点击
-    const handleAdClick = () => {
-      if (currentAd.value?.link) {
-        // 在新标签页中打开广告链接
-        window.open(currentAd.value.link, '_blank')
-        // 可以在这里添加广告点击统计等逻辑
-      }
-    }
+// 从 Vuex 获取状态
+const currentVideoAd = computed(() => {
+  const ad = store.getters['ad/currentVideoAd']
+  console.log('广告组件获取当前广告:', ad)
+  return ad
+})
+const loading = computed(() => store.getters['ad/loading'])
+const isVIP = computed(() => store.getters['user/isVIP'])
 
-    // 监听广告变化
-    watch(currentAd, async (newAd) => {
-      if (newAd && adPlayer.value) {
-        isLoading.value = true
-        adPlayer.value.load() // 重新加载视频
-      }
-    })
+// 是否可以跳过广告
+const canSkip = computed(() => {
+  const can = isVIP.value || currentTime.value >= skipAfter
+  console.log('广告是否可以跳过:', can, 'VIP:', isVIP.value, '当前时间:', currentTime.value)
+  return can
+})
 
-    // 处理广告时间更新
-    const handleTimeUpdate = () => {
+// 处理鼠标移入
+const handleMouseOver = () => {
+  if (currentVideoAd.value?.linkUrl) {
+    showClickTip.value = true
+  }
+}
+
+// 处理鼠标移出
+const handleMouseOut = () => {
+  showClickTip.value = false
+}
+
+// 处理广告点击
+const handleAdClick = () => {
+  if (currentVideoAd.value?.linkUrl) {
+    window.open(currentVideoAd.value.linkUrl, '_blank')
+  }
+}
+
+// 监听广告变化
+watch(currentVideoAd, async (newAd) => {
+  console.log('广告数据发生变化:', newAd)
+  if (newAd && adPlayer.value) {
+    console.log('重新加载广告视频')
+    adPlayer.value.load()
+  }
+})
+
+// 处理广告时间更新
+const handleTimeUpdate = () => {
+  if (adPlayer.value) {
+    currentTime.value = adPlayer.value.currentTime
+    console.log('广告播放进度:', currentTime.value)
+  }
+}
+
+// 处理广告结束
+const handleAdEnded = () => {
+  console.log('广告播放结束')
+  visible.value = false
+  store.dispatch('ad/clearCurrentVideoAd')
+  emit('end')
+}
+
+// 处理广告加载完成
+const handleAdLoaded = async () => {
+  console.log('广告视频加载完成，VIP状态:', isVIP.value)
+  if (isVIP.value) {
+    console.log('VIP用户自动跳过广告')
+    handleSkip()
+  } else if (currentVideoAd.value) {
+    try {
       if (adPlayer.value) {
-        currentTime.value = adPlayer.value.currentTime
+        adPlayer.value.volume = 0.5
       }
-    }
-
-    // 处理广告结束
-    const handleAdEnded = () => {
-      visible.value = false
-      store.dispatch('ad/clearCurrentAd')
-      emit('end')
-    }
-
-    // 处理广告加载完成
-    const handleAdLoaded = async () => {
-      isLoading.value = false
-      if (isVIP.value) {
-        // VIP用户自动跳过广告
-        handleSkip()
-      } else if (currentAd.value) {
-        try {
-          // 设置默认音量
-          if (adPlayer.value) {
-            adPlayer.value.volume = 0.5 // 设置适中的音量
-          }
-          // 尝试播放
-          await adPlayer.value?.play()
-        } catch (error) {
-          console.error('广告自动播放失败:', error)
-          ElMessage.warning('请点击播放按钮开始播放')
-          isLoading.value = false
-        }
-      }
-    }
-
-    // 处理广告加载错误
-    const handleAdError = (error) => {
-      console.error('广告加载错误:', error)
-      ElMessage.error('广告加载失败，已自动跳过')
-      handleSkip()
-    }
-
-    // 处理广告加载中
-    const handleAdWaiting = () => {
-      isLoading.value = true
-    }
-
-    // 处理广告可以播放
-    const handleAdCanPlay = () => {
-      isLoading.value = false
-    }
-
-    // 跳过广告
-    const handleSkip = () => {
-      if (canSkip.value) {
-        visible.value = false
-        store.dispatch('ad/clearCurrentAd')
-        emit('skip')
-      }
-    }
-
-    // 初始化广告
-    const initAd = async () => {
-      try {
-        await store.dispatch('ad/selectAdForMovie', {
-          movieId: props.movieId,
-          type: 'pre-roll'
-        })
-      } catch (error) {
-        console.error('初始化广告失败:', error)
-        handleSkip()
-      }
-    }
-
-    // 组件挂载时初始化
-    onMounted(() => {
-      initAd()
-      // 设置默认音量
-      if (adPlayer.value) {
-        adPlayer.value.volume = 0.5 // 设置适中的音量
-      }
-    })
-
-    // 组件卸载时清理
-    onUnmounted(() => {
-      if (adPlayer.value) {
-        adPlayer.value.pause()
-        adPlayer.value.src = ''
-        adPlayer.value.load()
-      }
-      store.dispatch('ad/clearCurrentAd')
-    })
-
-    return {
-      adPlayer,
-      visible,
-      currentTime,
-      isVIP,
-      canSkip,
-      isLoading,
-      currentAd,
-      showClickTip,
-      Loading,
-      Link,
-      handleTimeUpdate,
-      handleAdEnded,
-      handleAdLoaded,
-      handleAdError,
-      handleAdWaiting,
-      handleAdCanPlay,
-      handleSkip,
-      handleMouseOver,
-      handleMouseOut,
-      handleAdClick
+      console.log('开始播放广告')
+      await adPlayer.value?.play()
+    } catch (error) {
+      console.error('广告自动播放失败:', error)
+      ElMessage.warning('请点击播放按钮开始播放')
     }
   }
 }
+
+// 处理广告加载错误
+const handleAdError = (error) => {
+  console.error('广告加载错误:', error)
+  ElMessage.error('广告加载失败，已自动跳过')
+  handleSkip()
+}
+
+// 处理广告加载中
+const handleAdWaiting = () => {
+  // 加载状态由 Vuex 管理
+}
+
+// 处理广告可以播放
+const handleAdCanPlay = () => {
+  // 加载状态由 Vuex 管理
+}
+
+// 跳过广告
+const handleSkip = () => {
+  console.log('尝试跳过广告，当前状态:', { canSkip: canSkip.value, isVIP: isVIP.value })
+  if (canSkip.value) {
+    console.log('执行跳过广告')
+    visible.value = false
+    store.dispatch('ad/clearCurrentVideoAd')
+    emit('skip')
+  }
+}
+
+// 初始化广告
+const initAd = async () => {
+  console.log('开始初始化广告')
+  try {
+    await store.dispatch('ad/fetchVideoAds')
+    console.log('广告初始化成功')
+  } catch (error) {
+    console.error('初始化广告失败:', error)
+    handleSkip()
+  }
+}
+
+// 组件挂载时初始化
+onMounted(() => {
+  console.log('广告组件挂载')
+  initAd()
+  if (adPlayer.value) {
+    adPlayer.value.volume = 0.5
+  }
+})
+
+// 组件卸载时清理
+onUnmounted(() => {
+  console.log('广告组件卸载')
+  if (adPlayer.value) {
+    adPlayer.value.pause()
+    adPlayer.value.src = ''
+    adPlayer.value.load()
+  }
+  store.dispatch('ad/clearCurrentVideoAd')
+})
 </script>
 
 <style lang="scss" scoped>
@@ -269,7 +246,7 @@ export default {
     top: 0;
     left: 0;
     width: 100%;
-    height: calc(100% - 40px); // 留出控制栏的空间
+    height: calc(100% - 40px);
     z-index: 12;
     cursor: pointer;
 
@@ -306,7 +283,7 @@ export default {
 
   .ad-controls {
     position: absolute;
-    bottom: 85px; // 调整位置，避免与播放器控制栏重叠
+    bottom: 85px;
     right: 20px;
     display: flex;
     align-items: center;
@@ -314,7 +291,7 @@ export default {
     padding: 10px;
     background: rgba(0, 0, 0, 0.6);
     border-radius: 4px;
-    z-index: 13; // 确保在点击区域上方
+    z-index: 13;
 
     .ad-info {
       display: flex;
@@ -328,6 +305,14 @@ export default {
         padding: 2px 6px;
         border-radius: 2px;
         font-size: 12px;
+      }
+
+      .ad-title {
+        font-size: 14px;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .ad-duration {
@@ -357,7 +342,7 @@ export default {
     align-items: center;
     gap: 10px;
     color: #fff;
-    z-index: 14; // 确保在最上层
+    z-index: 14;
     
     .loading-icon {
       animation: rotate 1s linear infinite;

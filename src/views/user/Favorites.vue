@@ -17,34 +17,14 @@
       <el-empty v-if="!filteredFavorites.length" :description="searchQuery ? '未找到匹配的影片' : '暂无收藏'" />
 
       <div v-else class="favorites-grid">
-        <el-card v-for="movie in filteredFavorites" :key="movie.id" class="movie-card">
-          <div class="movie-poster">
-            <el-image :src="movie.cover" fit="cover" />
-            <div class="movie-actions">
-              <el-button type="primary" @click="handleWatch(movie)">
-                观看
-              </el-button>
-              <el-button type="danger" @click="handleRemoveFavorite(movie.id)">
-                取消收藏
-              </el-button>
-            </div>
+        <div v-for="movie in filteredFavorites" :key="movie.id" class="favorite-item">
+          <movie-card :movie="formatMovieData(movie)" />
+          <div class="favorite-actions">
+            <el-button type="danger" size="small" @click.stop="handleRemoveFavorite(movie.id)">
+              取消收藏
+            </el-button>
           </div>
-          <div class="movie-info">
-            <h3>{{ movie.title }}</h3>
-            <div class="movie-meta">
-              <el-rate
-                v-model="movie.score"
-                :max="10"
-                :allow-half="true"
-                disabled
-                text-color="#ff9900"
-              >
-                <template #suffix>{{ movie.score }}分</template>
-              </el-rate>
-              <p class="add-time">收藏于 {{ formatDate(movie.addTime) }}</p>
-            </div>
-          </div>
-        </el-card>
+        </div>
       </div>
     </template>
     <el-empty v-else description="请先登录" />
@@ -52,13 +32,18 @@
 </template>
 
 <script>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import { format } from 'date-fns'
+import MovieCard from '@/components/movie/MovieCard.vue'
 
 export default {
   name: 'UserFavorites',
+  components: {
+    MovieCard
+  },
   setup() {
     const store = useStore()
     const router = useRouter()
@@ -74,22 +59,29 @@ export default {
       )
     })
 
-    const formatDate = (dateString) => {
-      const date = new Date(dateString)
-      return date.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      })
+    // 格式化电影数据以适配 MovieCard 组件
+    const formatMovieData = (movie) => {
+      return {
+        id: movie.id,
+        title: movie.title,
+        cover: movie.posterUrl,
+        score: movie.rating,
+        year: movie.releaseDate?.split('-')[0] || '',
+        quality: movie.isVip ? 'VIP' : 'HD',
+        createTime: movie.createTime
+      }
     }
 
-    const handleWatch = (movie) => {
-      router.push({
-        name: 'MovieDetail',
-        params: { id: movie.id }
-      })
+    // 获取收藏列表
+    const fetchFavorites = async () => {
+      try {
+        await store.dispatch('user/fetchFavorites')
+      } catch (error) {
+        ElMessage.error('获取收藏列表失败')
+      }
     }
 
+    // 取消收藏
     const handleRemoveFavorite = async (movieId) => {
       try {
         await ElMessageBox.confirm(
@@ -105,16 +97,22 @@ export default {
         ElMessage.success('已取消收藏')
       } catch (error) {
         if (error !== 'cancel') {
-          ElMessage.error('操作失败')
+          ElMessage.error('取消收藏失败')
         }
       }
     }
 
+    // 组件挂载时获取收藏列表
+    onMounted(() => {
+      if (isLoggedIn.value) {
+        fetchFavorites()
+      }
+    })
+
     return {
       searchQuery,
       filteredFavorites,
-      formatDate,
-      handleWatch,
+      formatMovieData,
       handleRemoveFavorite,
       isLoggedIn
     }
@@ -147,70 +145,29 @@ export default {
 
 .favorites-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 20px;
 }
 
-.movie-card {
-  transition: transform 0.3s ease;
-}
-
-.movie-card:hover {
-  transform: translateY(-5px);
-}
-
-.movie-poster {
+.favorite-item {
   position: relative;
-  aspect-ratio: 2/3;
-  overflow: hidden;
-  border-radius: 8px;
 }
 
-.movie-poster .el-image {
-  width: 100%;
-  height: 100%;
-}
-
-.movie-actions {
+.favorite-actions {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 15px;
+  padding: 10px;
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
   display: flex;
-  gap: 10px;
+  justify-content: center;
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
-.movie-poster:hover .movie-actions {
+.favorite-item:hover .favorite-actions {
   opacity: 1;
-}
-
-.movie-info {
-  padding: 15px 0;
-}
-
-.movie-info h3 {
-  margin: 0 0 10px 0;
-  color: var(--el-text-color-primary);
-  font-size: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.movie-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.add-time {
-  margin: 0;
-  color: var(--el-text-color-secondary);
-  font-size: 14px;
 }
 
 @media (max-width: 768px) {
@@ -228,4 +185,4 @@ export default {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
 }
-</style> 
+</style>

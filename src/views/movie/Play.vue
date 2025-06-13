@@ -324,11 +324,20 @@ export default {
           if (playbackTimer.value) {
             clearTimeout(playbackTimer.value)
           }
-          playbackTimer.value = setTimeout(() => {
-            store.dispatch('movie/updateWatchProgress', {
-              movieId: movieId.value,
-              progress: currentTime / duration
-            })
+          playbackTimer.value = setTimeout(async () => {
+            try {
+              // 确保视频时长有效
+              if (duration && !isNaN(duration) && duration > 0) {
+                // 更新观看历史
+                await store.dispatch('user/updateHistory', {
+                  movieId: movieId.value,
+                  progress: Math.floor(currentTime),
+                  playTime: Math.floor(duration)
+                })
+              }
+            } catch (error) {
+              console.error('更新观看历史失败:', error)
+            }
           }, 2000) // 每2秒保存一次进度
 
           lastUpdateTime.value = now
@@ -351,10 +360,14 @@ export default {
       if (videoPlayer.value) {
         const currentTime = videoPlayer.value.currentTime
         const duration = videoPlayer.value.duration
-        store.dispatch('movie/updateWatchProgress', {
-          movieId: movieId.value,
-          progress: currentTime / duration
-        })
+        // 确保视频时长有效
+        if (duration && !isNaN(duration) && duration > 0) {
+          store.dispatch('user/updateHistory', {
+            movieId: movieId.value,
+            progress: Math.floor(currentTime),
+            playTime: Math.floor(duration)
+          })
+        }
       }
     }
 
@@ -373,10 +386,18 @@ export default {
         isPlaying: false,
         currentTime: videoPlayer.value?.duration || 0
       })
-      store.dispatch('movie/updateWatchProgress', {
-        movieId: movieId.value,
-        progress: 1
-      })
+      // 视频结束时更新观看历史
+      if (videoPlayer.value) {
+        const duration = videoPlayer.value.duration
+        // 确保视频时长有效
+        if (duration && !isNaN(duration) && duration > 0) {
+          store.dispatch('user/updateHistory', {
+            movieId: movieId.value,
+            progress: Math.floor(duration),
+            playTime: Math.floor(duration)
+          })
+        }
+      }
     }
 
     // 处理视频错误
@@ -419,12 +440,7 @@ export default {
           // 重置状态
           store.dispatch('movie/resetPlaybackState')
           showAd.value = true // 重置广告状态
-          
-          // 选择并设置广告
-          await store.dispatch('ad/selectAdForMovie', {
-            movieId: id,
-            type: 'pre-roll'
-          })
+          console.log('准备显示广告，showAd:', showAd.value)
           
           // 开始播放，获取电影信息
           const movieData = await store.dispatch('movie/startPlayback', id)
@@ -437,6 +453,20 @@ export default {
               query: { redirect: route.fullPath }
             })
             return
+          }
+
+          // 获取观看历史
+          try {
+            const history = await store.dispatch('user/fetchMovieHistory', id)
+            if (history && videoPlayer.value) {
+              const targetTime = history.progress
+              if (targetTime > 0 && targetTime < videoPlayer.value.duration) {
+                videoPlayer.value.currentTime = targetTime
+                ElMessage.info(`已恢复至上次播放位置：${Math.floor(targetTime / 60)}分${Math.floor(targetTime % 60)}秒`)
+              }
+            }
+          } catch (error) {
+            console.error('获取观看历史失败:', error)
           }
 
           // 加载其他数据
@@ -453,16 +483,6 @@ export default {
                 videoPlayer.value.addEventListener('loadedmetadata', resolve, { once: true })
               }
             })
-          }
-
-          // 恢复上次播放进度
-          const progress = store.getters['movie/watchProgress'].get(id)
-          if (progress && videoPlayer.value) {
-            const targetTime = progress * videoPlayer.value.duration
-            if (targetTime > 0 && targetTime < videoPlayer.value.duration) {
-              videoPlayer.value.currentTime = targetTime
-              ElMessage.info(`已恢复至上次播放位置：${Math.floor(targetTime / 60)}分${Math.floor(targetTime % 60)}秒`)
-            }
           }
 
           // 设置默认清晰度

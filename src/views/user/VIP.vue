@@ -92,12 +92,43 @@
               <el-radio label="alipay">支付宝</el-radio>
             </el-radio-group>
           </div>
+          <div v-if="paymentStatus" class="payment-status">
+            <template v-if="paymentStatus === 'processing'">
+              <div v-if="showSandbox" class="sandbox-container">
+                <payment-sandbox
+                  :order-id="currentOrder.orderId"
+                  :amount="currentOrder.amount"
+                  :payment-method="currentOrder.paymentMethod"
+                  @payment-result="handlePaymentResult"
+                />
+              </div>
+              <el-progress 
+                v-else
+                :percentage="100"
+                :indeterminate="true"
+                status="warning"
+              />
+            </template>
+            <div v-else-if="paymentStatus === 'success'" class="status-success">
+              <el-icon><CircleCheck /></el-icon>
+              <span>支付成功</span>
+            </div>
+            <div v-else-if="paymentStatus === 'failed'" class="status-failed">
+              <el-icon><CircleClose /></el-icon>
+              <span>支付失败</span>
+            </div>
+          </div>
         </div>
         <template #footer>
           <span class="dialog-footer">
             <el-button @click="paymentDialogVisible = false">取消</el-button>
-            <el-button type="primary" @click="handleConfirmPayment">
-              确认支付
+            <el-button 
+              type="primary" 
+              @click="handleConfirmPayment"
+              :loading="paymentStatus === 'processing'"
+              :disabled="paymentStatus === 'processing'"
+            >
+              {{ paymentStatus === 'processing' ? '支付中...' : '确认支付' }}
             </el-button>
           </span>
         </template>
@@ -108,7 +139,7 @@
 </template>
 
 <script>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
 import {
@@ -116,8 +147,24 @@ import {
   MuteNotification,
   Download,
   Service,
-  Check
+  Check,
+  CircleCheck,
+  CircleClose
 } from '@element-plus/icons-vue'
+import PaymentSandbox from '@/components/payment/PaymentSandbox.vue'
+
+// 支付配置
+const PAYMENT_CONFIG = {
+  wechat: {
+    appId: 'wx123456789', // 替换为您的微信支付沙箱appId
+    mchId: '1234567890', // 替换为您的微信支付沙箱商户号
+    sandbox: true
+  },
+  alipay: {
+    appId: '9021000149666429', // 替换为您的支付宝沙箱appId
+    sandbox: true
+  }
+}
 
 export default {
   name: 'UserVIP',
@@ -126,13 +173,22 @@ export default {
     MuteNotification,
     Download,
     Service,
-    Check
+    Check,
+    CircleCheck,
+    CircleClose,
+    PaymentSandbox
   },
   setup() {
     const store = useStore()
     const paymentDialogVisible = ref(false)
     const paymentMethod = ref('wechat')
     const selectedPlan = ref(null)
+    const paymentStatus = ref('')
+    const paymentTimer = ref(null)
+    const qrCodeUrl = ref('')
+    const showQRCode = ref(false)
+    const showSandbox = ref(false)
+    const currentOrder = ref(null)
     
     const isLoggedIn = computed(() => store.getters['user/isLoggedIn'])
     const isVIP = computed(() => store.getters['user/isVIP'])
@@ -152,20 +208,77 @@ export default {
       paymentDialogVisible.value = true
     }
 
-    const handleConfirmPayment = async () => {
+    const handlePaymentResult = async (result) => {
       try {
-        await store.dispatch('user/purchaseVIP', {
-          planId: selectedPlan.value.id,
-          paymentMethod: paymentMethod.value
-        })
-        ElMessage.success('支付成功！')
-        paymentDialogVisible.value = false
-        // 刷新用户信息
-        await store.dispatch('user/fetchUserInfo')
+        await store.dispatch('user/handlePaymentCallback', result)
+        if (result.status === 'SUCCESS') {
+          paymentStatus.value = 'success'
+          ElMessage.success('支付成功！')
+          paymentDialogVisible.value = false
+          await store.dispatch('user/fetchUserInfo')
+        } else {
+          paymentStatus.value = 'failed'
+          ElMessage.error('支付失败')
+        }
       } catch (error) {
-        ElMessage.error('支付失败，请重试')
+        console.error('处理支付结果失败:', error)
+        ElMessage.error('处理支付结果失败')
       }
     }
+
+    const generatePaymentQRCode = async (plan, method) => {
+      try {
+        if (!isLoggedIn.value) {
+          ElMessage.warning('请先登录')
+          return
+        }
+
+        // 将支付方式转换为数字
+        const paymentMethodMap = {
+          'wechat': 1,
+          'alipay': 2
+        }
+        
+        const response = await store.dispatch('user/generatePaymentQRCode', {
+          planId: parseInt(plan.id),
+          paymentMethod: paymentMethodMap[method],
+          amount: parseFloat(plan.price)
+        })
+        
+        // 显示支付沙箱
+        currentOrder.value = {
+          orderId: response.orderId,
+          amount: response.amount,
+          paymentMethod: method
+        }
+        showSandbox.value = true
+        paymentStatus.value = 'processing'
+      } catch (error) {
+        console.error('生成支付二维码失败:', error)
+        ElMessage.error(error.message || '生成支付二维码失败')
+      }
+    }
+
+    const handleConfirmPayment = async () => {
+      try {
+        if (!isLoggedIn.value) {
+          ElMessage.warning('请先登录')
+          return
+        }
+
+        paymentStatus.value = 'processing'
+        await generatePaymentQRCode(selectedPlan.value, paymentMethod.value)
+      } catch (error) {
+        paymentStatus.value = 'failed'
+        ElMessage.error(error.message || '支付失败，请重试')
+      }
+    }
+
+    onUnmounted(() => {
+      if (paymentTimer.value) {
+        clearInterval(paymentTimer.value)
+      }
+    })
 
     return {
       isLoggedIn,
@@ -175,8 +288,14 @@ export default {
       paymentDialogVisible,
       paymentMethod,
       selectedPlan,
+      paymentStatus,
+      qrCodeUrl,
+      showQRCode,
+      showSandbox,
+      currentOrder,
       handleBuyPlan,
-      handleConfirmPayment
+      handleConfirmPayment,
+      handlePaymentResult
     }
   }
 }
@@ -358,6 +477,53 @@ export default {
 
 .payment-methods h4 {
   margin-bottom: 15px;
+}
+
+.payment-status {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.status-success,
+.status-failed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.status-success {
+  color: var(--el-color-success);
+}
+
+.status-failed {
+  color: var(--el-color-danger);
+}
+
+.status-success .el-icon,
+.status-failed .el-icon {
+  font-size: 20px;
+}
+
+.qrcode-container {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.qrcode-image {
+  width: 200px;
+  height: 200px;
+  margin-bottom: 10px;
+}
+
+.qrcode-tip {
+  color: var(--el-text-color-secondary);
+  margin: 0;
+}
+
+.sandbox-container {
+  margin: 20px 0;
 }
 
 @media (max-width: 768px) {

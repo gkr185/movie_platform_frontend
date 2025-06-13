@@ -7,7 +7,17 @@ import {
   updateUserSettings,
   changePassword 
 } from '@/api/user'
+import { addFavorite, removeFavorite, getFavorites } from '@/api/favorite'
 import { getToken, setToken, removeToken } from '@/utils/auth'
+import { 
+  addHistory, 
+  getHistoryList, 
+  deleteHistory, 
+  clearHistory,
+  getMovieHistory 
+} from '@/api/history'
+import axios from 'axios'
+import { API_URLS } from '@/api/config'
 
 export default {
   namespaced: true,
@@ -26,7 +36,10 @@ export default {
     vipPlans: [],
     watchStats: null,
     watchPreferences: null,
-    vipExpireTime: null
+    vipExpireTime: null,
+    historyList: [],
+    historyTotal: 0,
+    currentMovieHistory: null
   },
 
   mutations: {
@@ -153,6 +166,14 @@ export default {
       }
     },
 
+    SET_FAVORITES(state, favorites) {
+      state.favorites = favorites
+      if (state.user) {
+        state.user.favorites = favorites
+        localStorage.setItem('user', JSON.stringify(state.user))
+      }
+    },
+
     ADD_TO_FAVORITES(state, movie) {
       if (!state.favorites.find(item => item.id === movie.id)) {
         const newFavorite = {
@@ -199,6 +220,20 @@ export default {
 
     SET_WATCH_PREFERENCES(state, preferences) {
       state.watchPreferences = preferences
+    },
+
+    SET_HISTORY_LIST(state, { list, total }) {
+      state.historyList = list
+      state.historyTotal = total
+    },
+
+    SET_CURRENT_MOVIE_HISTORY(state, history) {
+      state.currentMovieHistory = history
+    },
+
+    CLEAR_HISTORY_LIST(state) {
+      state.historyList = []
+      state.historyTotal = 0
     }
   },
 
@@ -318,20 +353,46 @@ export default {
       }
     },
 
-    async addToFavorites({ commit }, movie) {
+    async fetchFavorites({ commit, state }) {
       try {
-        await new Promise(resolve => setTimeout(resolve, 300))
+        if (!state.userId) {
+          throw new Error('用户未登录')
+        }
+        console.log('获取收藏列表，用户ID:', state.userId)
+        const favorites = await getFavorites(state.userId)
+        console.log('获取到的收藏列表:', favorites)
+        commit('SET_FAVORITES', favorites)
+        return favorites
+      } catch (error) {
+        console.error('获取收藏列表失败:', error)
+        throw error
+      }
+    },
+
+    async addToFavorites({ commit, state }, movie) {
+      try {
+        if (!state.userId) {
+          throw new Error('用户未登录')
+        }
+        console.log('添加收藏，用户ID:', state.userId, '电影ID:', movie.id)
+        await addFavorite(state.userId, movie.id)
         commit('ADD_TO_FAVORITES', movie)
+        return true
       } catch (error) {
         console.error('添加收藏失败:', error)
         throw error
       }
     },
 
-    async removeFromFavorites({ commit }, movieId) {
+    async removeFromFavorites({ commit, state }, movieId) {
       try {
-        await new Promise(resolve => setTimeout(resolve, 300))
+        if (!state.userId) {
+          throw new Error('用户未登录')
+        }
+        console.log('取消收藏，用户ID:', state.userId, '电影ID:', movieId)
+        await removeFavorite(state.userId, movieId)
         commit('REMOVE_FROM_FAVORITES', movieId)
+        return true
       } catch (error) {
         console.error('取消收藏失败:', error)
         throw error
@@ -478,6 +539,178 @@ export default {
           dispatch('logout')
         })
       }
+    },
+
+    async updateHistory({ commit, state }, { movieId, progress, playTime }) {
+      try {
+        if (!state.userInfo?.id) {
+          throw new Error('用户未登录')
+        }
+        console.log('更新观看历史:', { userId: state.userInfo.id, movieId, progress, playTime })
+        await addHistory(state.userInfo.id, movieId, progress, playTime)
+      } catch (error) {
+        console.error('更新观看历史失败:', error)
+        throw error
+      }
+    },
+
+    async fetchHistoryList({ commit, state }, params) {
+      try {
+        if (!state.userInfo?.id) {
+          throw new Error('用户未登录')
+        }
+        console.log('获取观看历史列表:', { userId: state.userInfo.id, params })
+        const { records, total } = await getHistoryList(state.userInfo.id, params)
+        commit('SET_HISTORY_LIST', { list: records, total })
+        return { records, total }
+      } catch (error) {
+        console.error('获取观看历史列表失败:', error)
+        throw error
+      }
+    },
+
+    async deleteHistory({ commit, state }, movieId) {
+      try {
+        if (!state.userInfo?.id) {
+          throw new Error('用户未登录')
+        }
+        console.log('删除观看历史:', { userId: state.userInfo.id, movieId })
+        await deleteHistory(state.userInfo.id, movieId)
+        // 从列表中移除
+        const newList = state.historyList.filter(item => item.id !== movieId)
+        commit('SET_HISTORY_LIST', { list: newList, total: state.historyTotal - 1 })
+      } catch (error) {
+        console.error('删除观看历史失败:', error)
+        throw error
+      }
+    },
+
+    async clearAllHistory({ commit, state }) {
+      try {
+        if (!state.userInfo?.id) {
+          throw new Error('用户未登录')
+        }
+        console.log('清空观看历史:', { userId: state.userInfo.id })
+        await clearHistory(state.userInfo.id)
+        commit('CLEAR_HISTORY_LIST')
+      } catch (error) {
+        console.error('清空观看历史失败:', error)
+        throw error
+      }
+    },
+
+    async fetchMovieHistory({ commit, state }, movieId) {
+      try {
+        if (!state.userInfo?.id) {
+          throw new Error('用户未登录')
+        }
+        console.log('获取电影观看记录:', { userId: state.userInfo.id, movieId })
+        const history = await getMovieHistory(state.userInfo.id, movieId)
+        commit('SET_CURRENT_MOVIE_HISTORY', history)
+        return history
+      } catch (error) {
+        console.error('获取电影观看记录失败:', error)
+        throw error
+      }
+    },
+
+    // 生成支付二维码
+    async generatePaymentQRCode({ commit, state }, { planId, paymentMethod, amount }) {
+      try {
+        // 参数验证
+        if (!planId || !paymentMethod || !amount) {
+          throw new Error('缺少必要的支付参数')
+        }
+
+        // 获取当前用户ID
+        const userId = state.userInfo?.id
+        if (!userId) {
+          throw new Error('用户未登录')
+        }
+
+        // 确保参数类型正确
+        const params = {
+          userId: Number(userId),
+          planId: Number(planId),
+          paymentMethod: Number(paymentMethod),
+          amount: Number(amount)
+        }
+
+        // 验证参数范围
+        if (isNaN(params.userId) || params.userId <= 0) {
+          throw new Error('无效的用户ID')
+        }
+        if (isNaN(params.planId) || params.planId <= 0) {
+          throw new Error('无效的套餐ID')
+        }
+        if (isNaN(params.paymentMethod) || ![1, 2].includes(params.paymentMethod)) {
+          throw new Error('无效的支付方式')
+        }
+        if (isNaN(params.amount) || params.amount <= 0) {
+          throw new Error('无效的支付金额')
+        }
+
+        const response = await axios.post(API_URLS.PAYMENT.GENERATE_QRCODE, params)
+        
+        if (!response.data || !response.data.orderId || !response.data.qrCodeUrl) {
+          throw new Error('支付二维码生成失败')
+        }
+
+        return response.data
+      } catch (error) {
+        console.error('生成支付二维码失败:', error)
+        if (error.response) {
+          // 服务器返回错误
+          throw new Error(error.response.data.message || '生成支付二维码失败')
+        }
+        throw error
+      }
+    },
+
+    // 检查支付状态
+    async checkPaymentStatus({ commit }, { orderId }) {
+      try {
+        if (!orderId) {
+          throw new Error('订单号不能为空')
+        }
+
+        const response = await axios.get(API_URLS.PAYMENT.CHECK_STATUS.replace('{orderId}', orderId))
+        
+        if (!response.data || typeof response.data.status === 'undefined') {
+          throw new Error('获取支付状态失败')
+        }
+
+        const status = response.data.status
+        // 将数字状态转换为字符串状态
+        const statusMap = {
+          0: 'PENDING',
+          1: 'SUCCESS',
+          2: 'FAILED'
+        }
+        return statusMap[status] || 'PENDING'
+      } catch (error) {
+        console.error('检查支付状态失败:', error)
+        if (error.response) {
+          throw new Error(error.response.data.message || '检查支付状态失败')
+        }
+        throw error
+      }
+    },
+
+    // 处理支付回调
+    async handlePaymentCallback({ commit, dispatch }, { orderId, status }) {
+      try {
+        const response = await axios.post(API_URLS.PAYMENT.CALLBACK, {
+          orderId,
+          status
+        })
+        if (status === 'SUCCESS') {
+          await dispatch('fetchUserInfo')
+        }
+        return response.data
+      } catch (error) {
+        throw new Error('处理支付回调失败')
+      }
     }
   },
 
@@ -497,6 +730,9 @@ export default {
     watchPreferences: state => state.watchPreferences,
     token: state => state.token,
     userInfo: state => state.userInfo,
-    userId: state => state.userId
+    userId: state => state.userId,
+    historyList: state => state.historyList,
+    historyTotal: state => state.historyTotal,
+    currentMovieHistory: state => state.currentMovieHistory
   }
 } 

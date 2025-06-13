@@ -1,242 +1,314 @@
 <template>
-  <div class="news-container">
-    <!-- 资讯分类标签 -->
-    <div class="news-categories">
-      <el-tabs v-model="activeCategory" @tab-click="handleCategoryChange">
-        <el-tab-pane label="全部" name="all"></el-tab-pane>
-        <el-tab-pane label="电影资讯" name="movie"></el-tab-pane>
-        <el-tab-pane label="行业动态" name="industry"></el-tab-pane>
-        <el-tab-pane label="活动公告" name="activity"></el-tab-pane>
-      </el-tabs>
+  <div class="news-page">
+    <!-- 搜索栏 -->
+    <div class="search-bar">
+      <el-input
+        v-model="searchKeyword"
+        placeholder="搜索新闻..."
+        class="search-input"
+        clearable
+        @keyup.enter="handleSearch"
+      >
+        <template #prefix>
+          <el-icon><Search /></el-icon>
+        </template>
+      </el-input>
+      <el-button type="primary" @click="handleSearch">搜索</el-button>
     </div>
 
-    <!-- 资讯列表 -->
-    <div class="news-list">
-      <el-card v-for="news in newsList" :key="news.id" class="news-item">
-        <div class="news-content">
-          <div class="news-image" v-if="news.image">
-            <img :src="news.image" :alt="news.title">
+    <!-- 分类标签 -->
+    <div class="category-tags">
+      <el-tag
+        :type="currentCategory === null ? 'primary' : 'info'"
+        class="category-tag"
+        @click="handleCategoryClick(null)"
+      >
+        全部
+      </el-tag>
+      <el-tag
+        v-for="category in categories"
+        :key="category.id"
+        :type="currentCategory === category.id ? 'primary' : 'info'"
+        class="category-tag"
+        @click="handleCategoryClick(category.id)"
+      >
+        {{ category.name }}
+      </el-tag>
+    </div>
+
+    <!-- 新闻列表 -->
+    <div class="news-list" v-loading="loading">
+      <template v-if="newsList.length > 0">
+        <div
+          v-for="news in newsList"
+          :key="news.id"
+          class="news-item"
+          @click="goToDetail(news.id)"
+        >
+          <div class="news-cover">
+            <el-image
+              :src="news.cover_image"
+              fit="cover"
+              :preview-src-list="[news.cover_image]"
+            >
+              <template #error>
+                <div class="image-error">
+                  <el-icon><Picture /></el-icon>
+                </div>
+              </template>
+            </el-image>
           </div>
-          <div class="news-info">
-            <h3 class="news-title" @click="viewNewsDetail(news.id)">
-              {{ news.title }}
-            </h3>
-            <p class="news-summary">{{ news.summary }}</p>
+          <div class="news-content">
+            <h3 class="news-title">{{ news.title }}</h3>
             <div class="news-meta">
-              <span class="news-time">
-                <i class="el-icon-time"></i>
-                {{ news.publishTime }}
-              </span>
-              <span class="news-author">
-                <i class="el-icon-user"></i>
-                {{ news.author }}
-              </span>
-              <span class="news-category">
-                <el-tag size="small" :type="news.categoryType">
-                  {{ news.category }}
-                </el-tag>
-              </span>
+              <span class="source">{{ news.source }}</span>
+              <span class="author">{{ news.author }}</span>
+              <span class="time">{{ formatTime(news.publishTime) }}</span>
+            </div>
+            <div class="news-category">
+              <el-tag size="small" type="info">{{ news.category?.name }}</el-tag>
             </div>
           </div>
         </div>
-        <div class="news-actions">
-          <div class="action-item">
-            <el-button 
-              type="text" 
-              :class="{ 'liked': news.isLiked }"
-              @click="handleLike(news)"
-            >
-              <i class="el-icon-star-off"></i>
-              {{ news.likes }} 点赞
-            </el-button>
-          </div>
-          <div class="action-item">
-            <el-button type="text">
-              <i class="el-icon-share"></i>
-              分享
-            </el-button>
-          </div>
-          <div class="action-item">
-            <el-button type="text" @click="viewNewsDetail(news.id)">
-              阅读全文
-            </el-button>
-          </div>
-        </div>
-      </el-card>
-    </div>
-
-    <!-- 分页器 -->
-    <div class="pagination">
-      <el-pagination
-        background
-        layout="prev, pager, next"
-        :total="total"
-        :page-size="pageSize"
-        :current-page="currentPage"
-        @current-change="handlePageChange"
-      >
-      </el-pagination>
+      </template>
+      <el-empty v-else description="暂无新闻" />
     </div>
   </div>
 </template>
 
 <script>
+import { ref, computed, onMounted } from 'vue'
+import { useStore } from 'vuex'
+import { useRouter } from 'vue-router'
+import { Search, Picture } from '@element-plus/icons-vue'
+import { formatDistanceToNow } from 'date-fns'
+import { zhCN } from 'date-fns/locale'
+
 export default {
-  name: 'News',
-  data() {
-    return {
-      activeCategory: 'all',
-      currentPage: 1,
-      pageSize: 10,
-      total: 100,
-      newsList: [
-        {
-          id: 1,
-          title: '《流浪地球3》确认立项，吴京继续主演',
-          summary: '近日，科幻电影《流浪地球3》正式宣布立项，该片将继续由郭帆执导，吴京主演...',
-          image: '/news/earth3.jpg',
-          publishTime: '2024-01-20 14:30',
-          author: '电影日报',
-          category: '电影资讯',
-          categoryType: 'primary',
-          likes: 1234,
-          isLiked: false
-        },
-        {
-          id: 2,
-          title: '2024年春节档电影票房突破50亿',
-          summary: '据统计，2024年春节档电影票房已突破50亿元，创下历史新高...',
-          publishTime: '2024-01-19 10:00',
-          author: '行业观察',
-          category: '行业动态',
-          categoryType: 'success',
-          likes: 856,
-          isLiked: true
+  name: 'NewsIndex',
+  components: {
+    Search,
+    Picture
+  },
+  setup() {
+    const store = useStore()
+    const router = useRouter()
+    const searchKeyword = ref('')
+    const currentCategory = ref(null)
+
+    // 从store获取状态
+    const newsList = computed(() => store.getters['news/newsList'] || [])
+    const loading = computed(() => store.getters['news/loading'])
+    const error = computed(() => store.getters['news/error'])
+    const categories = computed(() => store.getters['news/categories'] || [])
+
+    // 加载新闻列表
+    const loadNews = async () => {
+      try {
+        await store.dispatch('news/fetchAllNews')
+      } catch (error) {
+        console.error('加载新闻失败:', error)
+      }
+    }
+
+    // 加载分类列表
+    const loadCategories = async () => {
+      try {
+        await store.dispatch('news/fetchActiveCategories')
+      } catch (error) {
+        console.error('加载分类失败:', error)
+      }
+    }
+
+    // 处理分类点击
+    const handleCategoryClick = async (categoryId) => {
+      currentCategory.value = categoryId
+      try {
+        if (categoryId === null) {
+          await loadNews()
+        } else {
+          await store.dispatch('news/fetchNewsByCategory', categoryId)
         }
-      ]
+      } catch (error) {
+        console.error('加载分类新闻失败:', error)
+      }
     }
-  },
-  methods: {
-    handleCategoryChange(tab) {
-      // 处理分类切换
-      this.fetchNewsList(tab.name)
-    },
-    handlePageChange(page) {
-      this.currentPage = page
-      this.fetchNewsList()
-    },
-    handleLike(news) {
-      news.isLiked = !news.isLiked
-      news.likes += news.isLiked ? 1 : -1
-      // 调用点赞接口
-    },
-    viewNewsDetail(id) {
-      this.$router.push(`/news/detail/${id}`)
-    },
-    fetchNewsList(category = this.activeCategory) {
-      // 获取资讯列表数据
-      console.log('获取资讯列表:', category, this.currentPage)
+
+    // 处理搜索
+    const handleSearch = async () => {
+      if (!searchKeyword.value.trim()) {
+        await loadNews()
+        return
+      }
+      try {
+        await store.dispatch('news/searchNews', searchKeyword.value)
+      } catch (error) {
+        console.error('搜索新闻失败:', error)
+      }
     }
-  },
-  created() {
-    this.fetchNewsList()
+
+    // 跳转到详情页
+    const goToDetail = (id) => {
+      router.push(`/news/${id}`)
+    }
+
+    // 格式化时间
+    const formatTime = (time) => {
+      if (!time) return '未知时间'
+      return formatDistanceToNow(new Date(time), {
+        addSuffix: true,
+        locale: zhCN
+      })
+    }
+
+    // 页面加载时获取新闻列表和分类
+    onMounted(() => {
+      loadNews()
+      loadCategories()
+    })
+
+    return {
+      searchKeyword,
+      currentCategory,
+      categories,
+      newsList,
+      loading,
+      error,
+      handleCategoryClick,
+      handleSearch,
+      goToDetail,
+      formatTime
+    }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.news-container {
+.news-page {
+  max-width: 1200px;
+  margin: 0 auto;
   padding: 20px;
 
-  .news-categories {
+  .search-bar {
+    display: flex;
+    gap: 10px;
     margin-bottom: 20px;
+
+    .search-input {
+      flex: 1;
+    }
+  }
+
+  .category-tags {
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    .category-tag {
+      cursor: pointer;
+      transition: all 0.3s;
+
+      &:hover {
+        transform: translateY(-2px);
+      }
+    }
   }
 
   .news-list {
     .news-item {
+      display: flex;
+      gap: 20px;
+      padding: 20px;
       margin-bottom: 20px;
+      background: var(--movie-section-bg);
+      border-radius: 8px;
+      box-shadow: var(--movie-section-shadow);
+      cursor: pointer;
+      transition: all 0.3s;
 
-      .news-content {
-        display: flex;
-        gap: 20px;
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--movie-section-shadow-hover);
+      }
 
-        .news-image {
-          flex: 0 0 200px;
-          height: 150px;
-          overflow: hidden;
-          border-radius: 4px;
+      .news-cover {
+        flex-shrink: 0;
+        width: 200px;
+        height: 120px;
+        border-radius: 4px;
+        overflow: hidden;
 
-          img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-          }
+        .el-image {
+          width: 100%;
+          height: 100%;
         }
 
-        .news-info {
-          flex: 1;
-
-          .news-title {
-            margin: 0 0 10px;
-            font-size: 18px;
-            cursor: pointer;
-            color: #303133;
-
-            &:hover {
-              color: #409EFF;
-            }
-          }
-
-          .news-summary {
-            color: #666;
-            margin-bottom: 15px;
-            line-height: 1.5;
-          }
-
-          .news-meta {
-            color: #999;
-            font-size: 13px;
-
-            > span {
-              margin-right: 15px;
-
-              i {
-                margin-right: 4px;
-              }
-            }
+        .image-error {
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background-color: var(--input-bg-color);
+          
+          .el-icon {
+            font-size: 32px;
+            color: var(--text-color-light);
           }
         }
       }
 
-      .news-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 15px;
-        padding-top: 15px;
-        border-top: 1px solid #eee;
+      .news-content {
+        flex: 1;
+        min-width: 0;
 
-        .action-item {
-          margin-left: 20px;
+        .news-title {
+          margin: 0 0 10px;
+          font-size: 18px;
+          color: var(--text-color);
+          line-height: 1.4;
+        }
 
-          .el-button {
-            font-size: 14px;
+        .news-meta {
+          margin-bottom: 10px;
+          color: var(--text-color-light);
+          font-size: 14px;
 
-            i {
-              margin-right: 4px;
+          span {
+            margin-right: 15px;
+
+            &:last-child {
+              margin-right: 0;
             }
+          }
+        }
 
-            &.liked {
-              color: #ff4d4f;
-            }
+        .news-category {
+          .el-tag {
+            margin: 0;
           }
         }
       }
     }
   }
+}
 
-  .pagination {
-    text-align: center;
-    margin-top: 30px;
+// 响应式设计
+@media screen and (max-width: 768px) {
+  .news-page {
+    padding: 15px;
+
+    .news-list {
+      .news-item {
+        flex-direction: column;
+        gap: 15px;
+
+        .news-cover {
+          width: 100%;
+          height: 180px;
+        }
+      }
+    }
   }
 }
 </style> 
