@@ -3,9 +3,9 @@
     <template v-if="isLoggedIn">
       <div class="vip-header">
         <h2>VIP会员</h2>
-        <div class="vip-status" v-if="isVIP">
+        <div class="vip-status" v-if="userInfo.isVip">
           <el-tag type="warning" size="large">VIP会员</el-tag>
-          <span class="expire-date">到期时间：{{ vipExpireDate }}</span>
+          <span class="expire-date">到期时间：{{ formatDate(userInfo.vipExpireTime) }}</span>
         </div>
       </div>
 
@@ -38,99 +38,241 @@
       <div class="vip-plans">
         <h3>开通会员</h3>
         <div class="plans-grid">
-          <el-card 
-            v-for="plan in vipPlans" 
-            :key="plan.id"
-            :class="['plan-card', { 'recommended': plan.recommended }]"
-          >
+          <!-- 月度会员 -->
+          <el-card class="plan-card">
             <template #header>
               <div class="plan-header">
-                <h4>{{ plan.name }}</h4>
-                <el-tag v-if="plan.recommended" type="warning">推荐</el-tag>
+                <h4>月度会员</h4>
+                <div class="plan-badge basic">基础版</div>
               </div>
             </template>
             <div class="plan-price">
               <span class="currency">¥</span>
-              <span class="amount">{{ plan.price }}</span>
-              <span class="original-price">¥{{ plan.originalPrice }}</span>
+              <span class="amount">{{ vipPlans.monthly.price }}</span>
+              <span class="period">/月</span>
             </div>
             <div class="plan-features">
               <ul>
-                <li v-for="(feature, index) in plan.features" :key="index">
-                  <el-icon><Check /></el-icon>
-                  {{ feature }}
-                </li>
+                <li><el-icon><Check /></el-icon>{{ vipPlans.monthly.duration }}天有效期</li>
+                <li><el-icon><Check /></el-icon>高清画质观看</li>
+                <li><el-icon><Check /></el-icon>无广告播放</li>
+                <li><el-icon><Check /></el-icon>离线下载功能</li>
               </ul>
             </div>
             <el-button 
               type="primary" 
               class="buy-button"
-              :disabled="isVIP"
-              @click="handleBuyPlan(plan)"
+              :disabled="userInfo.isVip"
+              @click="handleBuyPlan(vipPlans.monthly)"
             >
-              {{ isVIP ? '已是会员' : '立即开通' }}
+              {{ userInfo.isVip ? '已是会员' : '立即开通' }}
+            </el-button>
+          </el-card>
+
+          <!-- 季度会员 -->
+          <el-card class="plan-card recommended">
+            <div class="popular-ribbon">推荐</div>
+            <template #header>
+              <div class="plan-header">
+                <h4>季度会员</h4>
+                <div class="plan-badge popular">热门版</div>
+              </div>
+            </template>
+            <div class="plan-price">
+              <span class="currency">¥</span>
+              <span class="amount">{{ vipPlans.quarterly.price }}</span>
+              <span class="period">/季</span>
+            </div>
+            <div class="plan-discount">
+              <span>相比月度节省 ¥{{ getMonthlySavings('quarterly') }}</span>
+            </div>
+            <div class="plan-features">
+              <ul>
+                <li><el-icon><Check /></el-icon>{{ vipPlans.quarterly.duration }}天有效期</li>
+                <li><el-icon><Check /></el-icon>超高清4K画质</li>
+                <li><el-icon><Check /></el-icon>无广告播放</li>
+                <li><el-icon><Check /></el-icon>离线下载功能</li>
+                <li><el-icon><Check /></el-icon>多端同时观看</li>
+              </ul>
+            </div>
+            <el-button 
+              type="primary" 
+              class="buy-button"
+              :disabled="userInfo.isVip"
+              @click="handleBuyPlan(vipPlans.quarterly)"
+            >
+              {{ userInfo.isVip ? '已是会员' : '立即开通' }}
+            </el-button>
+          </el-card>
+
+          <!-- 年度会员 -->
+          <el-card class="plan-card">
+            <template #header>
+              <div class="plan-header">
+                <h4>年度会员</h4>
+                <div class="plan-badge premium">至尊版</div>
+              </div>
+            </template>
+            <div class="plan-price">
+              <span class="currency">¥</span>
+              <span class="amount">{{ vipPlans.yearly.price }}</span>
+              <span class="period">/年</span>
+            </div>
+            <div class="plan-discount">
+              <span>相比月度节省 ¥{{ getMonthlySavings('yearly') }}</span>
+            </div>
+            <div class="plan-features">
+              <ul>
+                <li><el-icon><Check /></el-icon>{{ vipPlans.yearly.duration }}天有效期</li>
+                <li><el-icon><Check /></el-icon>超高清4K画质</li>
+                <li><el-icon><Check /></el-icon>无广告播放</li>
+                <li><el-icon><Check /></el-icon>离线下载功能</li>
+                <li><el-icon><Check /></el-icon>多端同时观看</li>
+                <li><el-icon><Check /></el-icon>专属客服服务</li>
+              </ul>
+            </div>
+            <el-button 
+              type="primary" 
+              class="buy-button"
+              :disabled="userInfo.isVip"
+              @click="handleBuyPlan(vipPlans.yearly)"
+            >
+              {{ userInfo.isVip ? '已是会员' : '立即开通' }}
             </el-button>
           </el-card>
         </div>
       </div>
 
+      <!-- 我的订单 -->
+      <div class="my-orders" v-if="userOrders.length > 0">
+        <h3>我的订单</h3>
+        <div class="orders-list">
+          <el-card v-for="order in userOrders" :key="order.id" class="order-card">
+            <div class="order-info">
+              <div class="order-header">
+                <span class="order-number">订单号：{{ order.orderNumber }}</span>
+                <el-tag :type="getOrderStatusType(order.status)" size="small">
+                  {{ order.statusName }}
+                </el-tag>
+              </div>
+              <div class="order-details">
+                <p><strong>{{ order.vipTypeName }}</strong></p>
+                <p>支付金额：<span class="amount">¥{{ order.amount }}</span></p>
+                <p>支付方式：{{ order.paymentMethodName }}</p>
+                <p>创建时间：{{ formatDateTime(order.createTime) }}</p>
+                <p v-if="order.payTime">支付时间：{{ formatDateTime(order.payTime) }}</p>
+              </div>
+            </div>
+          </el-card>
+        </div>
+      </div>
+
+      <!-- 支付对话框 -->
       <el-dialog
         v-model="paymentDialogVisible"
         title="确认支付"
-        width="400px"
+        width="500px"
         center
+        :close-on-click-modal="false"
       >
         <div class="payment-dialog">
           <div class="payment-info">
-            <p class="plan-name">{{ selectedPlan?.name }}</p>
-            <p class="plan-price">¥{{ selectedPlan?.price }}</p>
+            <h4>{{ selectedPlan?.name }}</h4>
+            <div class="price-info">
+              <span class="current-price">¥{{ selectedPlan?.price }}</span>
+              <span class="period">{{ selectedPlan?.period }}</span>
+            </div>
+            <p class="duration">有效期：{{ selectedPlan?.duration }}天</p>
           </div>
+          
           <div class="payment-methods">
             <h4>选择支付方式</h4>
             <el-radio-group v-model="paymentMethod">
-              <el-radio label="wechat">微信支付</el-radio>
-              <el-radio label="alipay">支付宝</el-radio>
+              <el-radio :label="0">
+                <div class="payment-option">
+                  <el-icon><ChatDotSquare /></el-icon>
+                  <span>微信支付</span>
+                </div>
+              </el-radio>
+              <el-radio :label="1">
+                <div class="payment-option">
+                  <el-icon><Money /></el-icon>
+                  <span>支付宝</span>
+                </div>
+              </el-radio>
+              <el-radio :label="2">
+                <div class="payment-option">
+                  <el-icon><CreditCard /></el-icon>
+                  <span>银行卡</span>
+                </div>
+              </el-radio>
             </el-radio-group>
           </div>
-          <div v-if="paymentStatus" class="payment-status">
-            <template v-if="paymentStatus === 'processing'">
-              <div v-if="showSandbox" class="sandbox-container">
-                <payment-sandbox
-                  :order-id="currentOrder.orderId"
-                  :amount="currentOrder.amount"
-                  :payment-method="currentOrder.paymentMethod"
-                  @payment-result="handlePaymentResult"
-                />
+
+          <!-- 支付二维码 -->
+          <div v-if="qrCodeInfo" class="qrcode-section">
+            <h4>扫码支付</h4>
+            <div class="qrcode-container">
+              <img :src="qrCodeInfo.qrCodeUrl" alt="支付二维码" class="qrcode-image" />
+              <p class="qrcode-tip">请使用{{ getPaymentMethodName(paymentMethod) }}扫描二维码完成支付</p>
+              <div class="payment-status">
+                <el-tag :type="getPaymentStatusType()" size="large">
+                  {{ getPaymentStatusText() }}
+                </el-tag>
               </div>
-              <el-progress 
-                v-else
-                :percentage="100"
-                :indeterminate="true"
-                status="warning"
-              />
-            </template>
-            <div v-else-if="paymentStatus === 'success'" class="status-success">
+              <div class="order-details">
+                <p>订单号：{{ qrCodeInfo.orderId }}</p>
+                <p>支付金额：<span class="amount">¥{{ qrCodeInfo.amount }}</span></p>
+                <p>过期时间：{{ formatDateTime(qrCodeInfo.expireTime) }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 支付状态 -->
+          <div v-if="paymentStatus" class="payment-result">
+            <div v-if="paymentStatus === 'success'" class="status-success">
               <el-icon><CircleCheck /></el-icon>
-              <span>支付成功</span>
+              <span>支付成功！VIP权限已开通</span>
             </div>
             <div v-else-if="paymentStatus === 'failed'" class="status-failed">
               <el-icon><CircleClose /></el-icon>
-              <span>支付失败</span>
+              <span>支付失败，请重试</span>
+            </div>
+            <div v-else-if="paymentStatus === 'expired'" class="status-expired">
+              <el-icon><Clock /></el-icon>
+              <span>订单已过期，请重新下单</span>
             </div>
           </div>
         </div>
+        
         <template #footer>
-          <span class="dialog-footer">
-            <el-button @click="paymentDialogVisible = false">取消</el-button>
+          <div class="dialog-footer">
+            <el-button @click="handleCancelPayment">取消</el-button>
             <el-button 
+              v-if="!qrCodeInfo"
               type="primary" 
               @click="handleConfirmPayment"
-              :loading="paymentStatus === 'processing'"
-              :disabled="paymentStatus === 'processing'"
+              :loading="generating"
             >
-              {{ paymentStatus === 'processing' ? '支付中...' : '确认支付' }}
+              {{ generating ? '生成中...' : '确认支付' }}
             </el-button>
-          </span>
+            <el-button 
+              v-else-if="currentOrderStatus === 0"
+              type="success" 
+              @click="handleSimulatePayment"
+              :loading="simulating"
+            >
+              {{ simulating ? '处理中...' : '模拟支付成功' }}
+            </el-button>
+            <el-button 
+              v-if="qrCodeInfo && currentOrderStatus === 0"
+              type="info" 
+              @click="handleCheckStatus"
+              :loading="checking"
+            >
+              {{ checking ? '查询中...' : '查询状态' }}
+            </el-button>
+          </div>
         </template>
       </el-dialog>
     </template>
@@ -139,7 +281,7 @@
 </template>
 
 <script>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
 import {
@@ -149,22 +291,13 @@ import {
   Service,
   Check,
   CircleCheck,
-  CircleClose
+  CircleClose,
+  Clock,
+  ChatDotSquare,
+  Money,
+  CreditCard
 } from '@element-plus/icons-vue'
-import PaymentSandbox from '@/components/payment/PaymentSandbox.vue'
-
-// 支付配置
-const PAYMENT_CONFIG = {
-  wechat: {
-    appId: 'wx123456789', // 替换为您的微信支付沙箱appId
-    mchId: '1234567890', // 替换为您的微信支付沙箱商户号
-    sandbox: true
-  },
-  alipay: {
-    appId: '9021000149666429', // 替换为您的支付宝沙箱appId
-    sandbox: true
-  }
-}
+import { paymentApi } from '@/api/payment'
 
 export default {
   name: 'UserVIP',
@@ -176,126 +309,342 @@ export default {
     Check,
     CircleCheck,
     CircleClose,
-    PaymentSandbox
+    Clock,
+    ChatDotSquare,
+    Money,
+    CreditCard
   },
   setup() {
     const store = useStore()
     const paymentDialogVisible = ref(false)
-    const paymentMethod = ref('wechat')
+    const paymentMethod = ref(0) // 0:微信 1:支付宝 2:银行卡
     const selectedPlan = ref(null)
     const paymentStatus = ref('')
-    const paymentTimer = ref(null)
-    const qrCodeUrl = ref('')
-    const showQRCode = ref(false)
-    const showSandbox = ref(false)
-    const currentOrder = ref(null)
+    const qrCodeInfo = ref(null)
+    const currentOrderStatus = ref(-1) // -1:未开始 0:待支付 1:已支付 2:已取消 3:已过期
+    const generating = ref(false)
+    const simulating = ref(false)
+    const checking = ref(false)
+    const userOrders = ref([])
     
-    const isLoggedIn = computed(() => store.getters['user/isLoggedIn'])
-    const isVIP = computed(() => store.getters['user/isVIP'])
-    const vipExpireDate = computed(() => store.getters['user/vipExpireDate'])
-    const vipPlans = computed(() => store.getters['user/vipPlans'] || [])
-
-    onMounted(async () => {
-      try {
-        await store.dispatch('user/fetchVIPPlans')
-      } catch (error) {
-        ElMessage.error('获取会员套餐失败')
+    // 轮询定时器
+    let statusPollingTimer = null
+    
+    // VIP套餐配置（根据API接口说明）
+    const vipPlans = reactive({
+      monthly: {
+        id: 1,
+        name: '月度会员',
+        price: 29.90,
+        duration: 30,
+        period: '/月',
+        type: 1
+      },
+      quarterly: {
+        id: 2,
+        name: '季度会员',
+        price: 88.00,
+        duration: 90,
+        period: '/季',
+        type: 2
+      },
+      yearly: {
+        id: 3,
+        name: '年度会员',
+        price: 328.00,
+        duration: 365,
+        period: '/年',
+        type: 3
       }
     })
 
-    const handleBuyPlan = (plan) => {
-      selectedPlan.value = plan
-      paymentDialogVisible.value = true
-    }
+    const isLoggedIn = computed(() => store.getters['user/isLoggedIn'])
+    const userInfo = computed(() => store.getters['user/userInfo'] || {})
 
-    const handlePaymentResult = async (result) => {
+    // 获取用户订单
+    const fetchUserOrders = async () => {
+      if (!isLoggedIn.value || !userInfo.value.id) return
+      
       try {
-        await store.dispatch('user/handlePaymentCallback', result)
-        if (result.status === 'SUCCESS') {
-          paymentStatus.value = 'success'
-          ElMessage.success('支付成功！')
-          paymentDialogVisible.value = false
-          await store.dispatch('user/fetchUserInfo')
-        } else {
-          paymentStatus.value = 'failed'
-          ElMessage.error('支付失败')
-        }
+        const response = await paymentApi.getUserOrders(userInfo.value.id, 0, 5)
+        const data = response.data || response
+        userOrders.value = data.content || []
       } catch (error) {
-        console.error('处理支付结果失败:', error)
-        ElMessage.error('处理支付结果失败')
+        console.error('获取用户订单失败:', error)
       }
     }
 
-    const generatePaymentQRCode = async (plan, method) => {
-      try {
-        if (!isLoggedIn.value) {
-          ElMessage.warning('请先登录')
-          return
-        }
+    onMounted(async () => {
+      if (isLoggedIn.value) {
+        await fetchUserOrders()
+      }
+    })
 
-        // 将支付方式转换为数字
-        const paymentMethodMap = {
-          'wechat': 1,
-          'alipay': 2
-        }
+    // 计算节省金额
+    const getMonthlySavings = (planType) => {
+      if (planType === 'quarterly') {
+        const monthlyTotal = vipPlans.monthly.price * 3
+        return (monthlyTotal - vipPlans.quarterly.price).toFixed(2)
+      } else if (planType === 'yearly') {
+        const monthlyTotal = vipPlans.monthly.price * 12
+        return (monthlyTotal - vipPlans.yearly.price).toFixed(2)
+      }
+      return 0
+    }
+
+    // 处理购买套餐
+    const handleBuyPlan = (plan) => {
+      if (!isLoggedIn.value) {
+        ElMessage.warning('请先登录')
+        return
+      }
+      
+      selectedPlan.value = plan
+      paymentDialogVisible.value = true
+      paymentStatus.value = ''
+      qrCodeInfo.value = null
+      currentOrderStatus.value = -1
+    }
+
+    // 确认支付
+    const handleConfirmPayment = async () => {
+      if (!selectedPlan.value || !isLoggedIn.value) return
+      
+      try {
+        generating.value = true
         
-        const response = await store.dispatch('user/generatePaymentQRCode', {
-          planId: parseInt(plan.id),
-          paymentMethod: paymentMethodMap[method],
-          amount: parseFloat(plan.price)
+        const response = await paymentApi.generateQRCode({
+          userId: userInfo.value.id,
+          planId: selectedPlan.value.type,
+          amount: selectedPlan.value.price,
+          paymentMethod: paymentMethod.value
         })
         
-        // 显示支付沙箱
-        currentOrder.value = {
-          orderId: response.orderId,
-          amount: response.amount,
-          paymentMethod: method
-        }
-        showSandbox.value = true
-        paymentStatus.value = 'processing'
+        const data = response.data || response
+        qrCodeInfo.value = data
+        currentOrderStatus.value = 0
+        
+        ElMessage.success('支付二维码生成成功')
+        
+        // 开始轮询支付状态
+        startStatusPolling()
+        
       } catch (error) {
         console.error('生成支付二维码失败:', error)
         ElMessage.error(error.message || '生成支付二维码失败')
+      } finally {
+        generating.value = false
       }
     }
 
-    const handleConfirmPayment = async () => {
+    // 模拟支付成功（用于测试）
+    const handleSimulatePayment = async () => {
+      if (!qrCodeInfo.value) return
+      
       try {
-        if (!isLoggedIn.value) {
-          ElMessage.warning('请先登录')
+        simulating.value = true
+        
+        await paymentApi.handlePaymentCallback({
+          orderId: qrCodeInfo.value.orderId,
+          status: 'SUCCESS'
+        })
+        
+        currentOrderStatus.value = 1
+        paymentStatus.value = 'success'
+        
+        ElMessage.success('支付成功！')
+        
+        // 刷新用户信息和订单
+        await store.dispatch('user/getUserInfo')
+        await fetchUserOrders()
+        
+        // 停止轮询
+        stopStatusPolling()
+        
+      } catch (error) {
+        console.error('模拟支付失败:', error)
+        ElMessage.error('模拟支付失败')
+      } finally {
+        simulating.value = false
+      }
+    }
+
+    // 查询支付状态
+    const handleCheckStatus = async () => {
+      if (!qrCodeInfo.value) return
+      
+      try {
+        checking.value = true
+        
+        const response = await paymentApi.getPaymentStatus(qrCodeInfo.value.orderId)
+        const data = response.data || response
+        
+        currentOrderStatus.value = data.status
+        
+        if (data.status === 1) {
+          paymentStatus.value = 'success'
+          ElMessage.success('支付已完成')
+          await store.dispatch('user/getUserInfo')
+          await fetchUserOrders()
+          stopStatusPolling()
+        } else if (data.status === 2) {
+          paymentStatus.value = 'failed'
+          ElMessage.warning('订单已取消')
+          stopStatusPolling()
+        } else if (data.status === 3) {
+          paymentStatus.value = 'expired'
+          ElMessage.warning('订单已过期')
+          stopStatusPolling()
+        } else {
+          ElMessage.info('订单待支付')
+        }
+        
+      } catch (error) {
+        console.error('查询支付状态失败:', error)
+        ElMessage.error('查询支付状态失败')
+      } finally {
+        checking.value = false
+      }
+    }
+
+    // 开始状态轮询
+    const startStatusPolling = () => {
+      if (statusPollingTimer) {
+        clearInterval(statusPollingTimer)
+      }
+      
+      statusPollingTimer = setInterval(async () => {
+        if (currentOrderStatus.value !== 0) {
+          stopStatusPolling()
           return
         }
+        
+        try {
+          const response = await paymentApi.getPaymentStatus(qrCodeInfo.value.orderId)
+          const data = response.data || response
+          
+          currentOrderStatus.value = data.status
+          
+          if (data.status === 1) {
+            paymentStatus.value = 'success'
+            ElMessage.success('支付完成！')
+            await store.dispatch('user/getUserInfo')
+            await fetchUserOrders()
+            stopStatusPolling()
+          } else if (data.status === 2) {
+            paymentStatus.value = 'failed'
+            ElMessage.warning('订单已取消')
+            stopStatusPolling()
+          } else if (data.status === 3) {
+            paymentStatus.value = 'expired'
+            ElMessage.warning('订单已过期')
+            stopStatusPolling()
+          }
+        } catch (error) {
+          console.error('轮询支付状态失败:', error)
+        }
+      }, 3000) // 每3秒查询一次
+    }
 
-        paymentStatus.value = 'processing'
-        await generatePaymentQRCode(selectedPlan.value, paymentMethod.value)
-      } catch (error) {
-        paymentStatus.value = 'failed'
-        ElMessage.error(error.message || '支付失败，请重试')
+    // 停止状态轮询
+    const stopStatusPolling = () => {
+      if (statusPollingTimer) {
+        clearInterval(statusPollingTimer)
+        statusPollingTimer = null
       }
+    }
+
+    // 取消支付
+    const handleCancelPayment = () => {
+      paymentDialogVisible.value = false
+      stopStatusPolling()
+      qrCodeInfo.value = null
+      paymentStatus.value = ''
+      currentOrderStatus.value = -1
+    }
+
+    // 获取支付方式名称
+    const getPaymentMethodName = (method) => {
+      const names = {
+        0: '微信支付',
+        1: '支付宝',
+        2: '银行卡'
+      }
+      return names[method] || '未知'
+    }
+
+    // 获取支付状态类型
+    const getPaymentStatusType = () => {
+      if (currentOrderStatus.value === 0) return 'warning'
+      if (currentOrderStatus.value === 1) return 'success'
+      return 'danger'
+    }
+
+    // 获取支付状态文本
+    const getPaymentStatusText = () => {
+      const texts = {
+        [-1]: '未开始',
+        [0]: '待支付',
+        [1]: '已支付',
+        [2]: '已取消',
+        [3]: '已过期'
+      }
+      return texts[currentOrderStatus.value] || '未知'
+    }
+
+    // 获取订单状态类型
+    const getOrderStatusType = (status) => {
+      const types = {
+        0: 'warning',
+        1: 'success',
+        2: 'danger',
+        3: 'info'
+      }
+      return types[status] || 'info'
+    }
+
+    // 格式化日期
+    const formatDate = (dateTime) => {
+      if (!dateTime) return '-'
+      return new Date(dateTime).toLocaleDateString('zh-CN')
+    }
+
+    // 格式化日期时间
+    const formatDateTime = (dateTime) => {
+      if (!dateTime) return '-'
+      return new Date(dateTime).toLocaleString('zh-CN')
     }
 
     onUnmounted(() => {
-      if (paymentTimer.value) {
-        clearInterval(paymentTimer.value)
-      }
+      stopStatusPolling()
     })
 
     return {
       isLoggedIn,
-      isVIP,
-      vipExpireDate,
+      userInfo,
       vipPlans,
+      userOrders,
       paymentDialogVisible,
       paymentMethod,
       selectedPlan,
       paymentStatus,
-      qrCodeUrl,
-      showQRCode,
-      showSandbox,
-      currentOrder,
+      qrCodeInfo,
+      currentOrderStatus,
+      generating,
+      simulating,
+      checking,
+      getMonthlySavings,
       handleBuyPlan,
       handleConfirmPayment,
-      handlePaymentResult
+      handleSimulatePayment,
+      handleCheckStatus,
+      handleCancelPayment,
+      getPaymentMethodName,
+      getPaymentStatusType,
+      getPaymentStatusText,
+      getOrderStatusType,
+      formatDate,
+      formatDateTime
     }
   }
 }
@@ -335,7 +684,8 @@ export default {
 }
 
 .vip-benefits h3,
-.vip-plans h3 {
+.vip-plans h3,
+.my-orders h3 {
   margin-bottom: 20px;
   color: var(--el-text-color-primary);
 }
@@ -376,21 +726,46 @@ export default {
 
 .plans-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 20px;
 }
 
 .plan-card {
+  position: relative;
   transition: transform 0.3s ease;
 }
 
 .plan-card.recommended {
   transform: scale(1.05);
-  border-color: var(--el-color-warning);
+  border: 2px solid var(--el-color-warning);
 }
 
 .plan-card:not(.recommended):hover {
   transform: translateY(-5px);
+}
+
+.popular-ribbon {
+  position: absolute;
+  top: 15px;
+  right: -8px;
+  background: linear-gradient(45deg, #409eff, #67c23a);
+  color: white;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: bold;
+  border-radius: 3px;
+  z-index: 1;
+}
+
+.popular-ribbon::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-right: 4px solid transparent;
+  border-top: 4px solid #2980b9;
 }
 
 .plan-header {
@@ -404,14 +779,35 @@ export default {
   font-size: 18px;
 }
 
+.plan-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+}
+
+.plan-badge.basic {
+  background: linear-gradient(45deg, #909399, #c0c4cc);
+}
+
+.plan-badge.popular {
+  background: linear-gradient(45deg, #409eff, #67c23a);
+}
+
+.plan-badge.premium {
+  background: linear-gradient(45deg, #f56c6c, #e6a23c);
+}
+
 .plan-price {
   text-align: center;
-  margin: 20px 0;
+  margin: 20px 0 10px 0;
 }
 
 .currency {
-  font-size: 20px;
+  font-size: 16px;
   vertical-align: super;
+  color: var(--el-text-color-secondary);
 }
 
 .amount {
@@ -420,10 +816,20 @@ export default {
   color: var(--el-color-danger);
 }
 
-.original-price {
-  margin-left: 10px;
+.period {
+  font-size: 14px;
   color: var(--el-text-color-secondary);
-  text-decoration: line-through;
+}
+
+.plan-discount {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.plan-discount span {
+  color: var(--el-color-success);
+  font-size: 14px;
+  font-weight: bold;
 }
 
 .plan-features {
@@ -452,78 +858,200 @@ export default {
   width: 100%;
 }
 
+.my-orders {
+  margin-top: 40px;
+}
+
+.orders-list {
+  display: grid;
+  gap: 15px;
+}
+
+.order-card {
+  transition: transform 0.2s ease;
+}
+
+.order-card:hover {
+  transform: translateY(-2px);
+}
+
+.order-info {
+  padding: 10px;
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.order-number {
+  font-weight: bold;
+  color: var(--el-text-color-primary);
+}
+
+.order-details p {
+  margin: 5px 0;
+  color: var(--el-text-color-regular);
+}
+
+.order-details .amount {
+  color: var(--el-color-danger);
+  font-weight: bold;
+}
+
 .payment-dialog {
   text-align: center;
 }
 
 .payment-info {
-  margin-bottom: 20px;
+  margin-bottom: 25px;
+  padding: 20px;
+  background-color: var(--el-bg-color-page);
+  border-radius: 8px;
 }
 
-.payment-info .plan-name {
-  font-size: 18px;
-  margin: 0 0 10px 0;
+.payment-info h4 {
+  margin: 0 0 15px 0;
+  font-size: 20px;
+  color: var(--el-text-color-primary);
 }
 
-.payment-info .plan-price {
-  font-size: 24px;
+.price-info {
+  margin-bottom: 10px;
+}
+
+.current-price {
+  font-size: 28px;
+  font-weight: bold;
   color: var(--el-color-danger);
+}
+
+.period {
+  font-size: 16px;
+  color: var(--el-text-color-secondary);
+  margin-left: 5px;
+}
+
+.duration {
   margin: 0;
+  color: var(--el-text-color-secondary);
 }
 
 .payment-methods {
   text-align: left;
+  margin-bottom: 25px;
 }
 
 .payment-methods h4 {
   margin-bottom: 15px;
+  color: var(--el-text-color-primary);
 }
 
-.payment-status {
-  margin-top: 20px;
-  text-align: center;
-}
-
-.status-success,
-.status-failed {
+.payment-option {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  margin-top: 10px;
 }
 
-.status-success {
-  color: var(--el-color-success);
+.payment-option .el-icon {
+  font-size: 18px;
 }
 
-.status-failed {
-  color: var(--el-color-danger);
+.qrcode-section {
+  margin: 25px 0;
+  padding: 20px;
+  background-color: var(--el-bg-color-page);
+  border-radius: 8px;
 }
 
-.status-success .el-icon,
-.status-failed .el-icon {
-  font-size: 20px;
+.qrcode-section h4 {
+  margin-bottom: 20px;
+  color: var(--el-text-color-primary);
 }
 
 .qrcode-container {
   text-align: center;
-  margin: 20px 0;
 }
 
 .qrcode-image {
   width: 200px;
   height: 200px;
-  margin-bottom: 10px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+  margin-bottom: 15px;
 }
 
 .qrcode-tip {
   color: var(--el-text-color-secondary);
-  margin: 0;
+  margin-bottom: 15px;
 }
 
-.sandbox-container {
+.payment-status {
+  margin-bottom: 15px;
+}
+
+.order-details {
+  text-align: left;
+  background-color: var(--el-fill-color-light);
+  padding: 15px;
+  border-radius: 6px;
+}
+
+.order-details p {
+  margin: 5px 0;
+  color: var(--el-text-color-regular);
+}
+
+.order-details .amount {
+  color: var(--el-color-danger);
+  font-weight: bold;
+}
+
+.payment-result {
   margin: 20px 0;
+  text-align: center;
+}
+
+.status-success,
+.status-failed,
+.status-expired {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 15px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.status-success {
+  color: var(--el-color-success);
+  background-color: var(--el-color-success-light-9);
+}
+
+.status-failed {
+  color: var(--el-color-danger);
+  background-color: var(--el-color-danger-light-9);
+}
+
+.status-expired {
+  color: var(--el-color-warning);
+  background-color: var(--el-color-warning-light-9);
+}
+
+.status-success .el-icon,
+.status-failed .el-icon,
+.status-expired .el-icon {
+  font-size: 20px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
 }
 
 @media (max-width: 768px) {
@@ -535,6 +1063,10 @@ export default {
 
   .plan-card.recommended {
     transform: none;
+  }
+
+  .plans-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style> 
