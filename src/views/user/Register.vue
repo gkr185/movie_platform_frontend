@@ -91,23 +91,55 @@ export default {
         callback(new Error('用户名长度不能小于3位'))
         return
       }
+      
       try {
+        console.log('开始检查用户名:', value)
         const response = await checkUsername(value)
-        console.log('检查用户名响应:', response) // 调试日志
+        console.log('检查用户名响应:', response)
         
-        if (response.code === 200) {
-          // 后端返回 data: true 表示用户名可用
-          if (response.data === true) {
-            callback()
-          } else {
-            callback(new Error('该用户名已被使用'))
+        // 处理不同的响应格式
+        if (response) {
+          // 如果有code字段
+          if (response.hasOwnProperty('code')) {
+            if (response.code === 200) {
+              // 检查data字段的值
+              if (response.data === true || response.data === 'true') {
+                console.log('用户名可用')
+                callback()
+              } else if (response.data === false || response.data === 'false') {
+                console.log('用户名已被使用')
+                callback(new Error('该用户名已被使用'))
+              } else {
+                // data字段可能是其他格式，根据message判断
+                if (response.message && response.message.includes('可用')) {
+                  callback()
+                } else {
+                  callback(new Error(response.message || '该用户名已被使用'))
+                }
+              }
+            } else {
+              callback(new Error(response.message || '检查用户名可用性失败'))
+            }
+          }
+          // 如果响应直接是布尔值
+          else if (typeof response === 'boolean') {
+            if (response === true) {
+              callback()
+            } else {
+              callback(new Error('该用户名已被使用'))
+            }
+          }
+          // 其他情况
+          else {
+            console.log('未知响应格式:', response)
+            callback(new Error('检查用户名可用性失败，请重试'))
           }
         } else {
-          callback(new Error(response.message || '检查用户名可用性失败，请重试'))
+          callback(new Error('检查用户名可用性失败，请重试'))
         }
       } catch (error) {
-        console.error('检查用户名可用性失败:', error)
-        callback(new Error(error.message || '检查用户名可用性失败，请重试'))
+        console.error('检查用户名异常:', error)
+        callback(new Error('检查用户名可用性失败，请重试'))
       }
     }
 

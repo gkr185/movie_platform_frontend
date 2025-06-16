@@ -167,23 +167,74 @@ export async function checkUsername(username) {
       throw new Error('用户名长度必须在3-20个字符之间')
     }
 
+    console.log('发送用户名检查请求:', username)
     const response = await request({
       url: USER.CHECK_USERNAME,
       method: 'get',
       params: { username }
     })
 
-    return response
+    console.log('用户名检查原始响应:', response)
+    
+    // 处理不同的响应格式
+    if (response) {
+      // 如果响应有code字段，使用标准格式
+      if (response.hasOwnProperty('code')) {
+        return {
+          code: response.code,
+          message: response.message || '检查完成',
+          data: response.data
+        }
+      }
+      // 如果响应直接是布尔值
+      else if (typeof response === 'boolean') {
+        return {
+          code: 200,
+          message: '检查完成',
+          data: response
+        }
+      }
+      // 如果响应有data字段但没有code
+      else if (response.hasOwnProperty('data')) {
+        return {
+          code: 200,
+          message: '检查完成',
+          data: response.data
+        }
+      }
+      // 其他情况，假设响应本身就是结果
+      else {
+        return {
+          code: 200,
+          message: '检查完成',
+          data: response
+        }
+      }
+    }
+
+    // 如果没有响应，返回错误
+    return {
+      code: 500,
+      message: '检查用户名可用性失败',
+      data: false
+    }
 
   } catch (error) {
     console.error('检查用户名可用性失败:', error)
-    if (error.response && error.response.data) {
+    
+    // 如果是网络错误或其他axios错误
+    if (error.response) {
+      const { status, data } = error.response
+      console.log('错误响应状态:', status, '数据:', data)
+      
       return {
-        code: error.response.data.code || 500,
-        message: error.response.data.message || '该用户名已被使用',
+        code: status,
+        message: data?.message || error.message || '检查用户名可用性失败',
         data: false
       }
     }
+    
+    // 如果是其他类型的错误
     return {
       code: 500,
       message: error.message || '检查用户名可用性失败',

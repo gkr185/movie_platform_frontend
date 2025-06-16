@@ -12,6 +12,13 @@ module.exports = defineConfig({
           '^/api/payment': '/api/payment'
         }
       },
+      '/api/moviesView': {
+        target: 'http://localhost:8061',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/api/moviesView': '/api/moviesView'
+        }
+      },
       '/api/movies': {
         target: 'http://localhost:8061',
         changeOrigin: true,
@@ -59,6 +66,20 @@ module.exports = defineConfig({
         changeOrigin: true,
         pathRewrite: {
           '^/api/news': '/api/news'
+        }
+      },
+      '/feedback': {
+        target: 'http://localhost:8064',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/feedback': '/feedback'
+        }
+      },
+      '/images': {
+        target: 'http://localhost:8064',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/images': '/images'
         }
       },
       '/api/advertisements': {

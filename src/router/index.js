@@ -115,9 +115,9 @@ const routes = [
         meta: { requiresAuth: true }
       },
       {
-        path: 'statistics',
-        name: 'UserStatistics',
-        component: () => import('@/views/user/Statistics.vue'),
+        path: 'feedback',
+        name: 'UserFeedback',
+        component: () => import('@/views/user/UserFeedback.vue'),
         meta: { requiresAuth: true }
       }
     ]

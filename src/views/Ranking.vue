@@ -7,6 +7,14 @@
       <el-tab-pane label="推荐榜" name="recommended">
         <ranking-list :list="recommendedList" type="recommended" :loading="loading" />
       </el-tab-pane>
+      <el-tab-pane label="观看排行榜" name="view">
+        <view-ranking-list 
+          title="观看排行榜"
+          :is-compact="false"
+          :show-header="false"
+          @movie-click="handleMovieClick"
+        />
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
@@ -15,18 +23,21 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import RankingList from '@/components/RankingList.vue'
+import ViewRankingList from '@/components/ViewRankingList.vue'
 import { getHotMovies, getRecommendedMovies } from '@/api/movie'
 import { useStore } from 'vuex'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 export default {
   name: 'Ranking',
   components: {
-    RankingList
+    RankingList,
+    ViewRankingList
   },
   setup() {
     const store = useStore()
     const route = useRoute()
+    const router = useRouter()
     const activeTab = ref(route.query.tab || 'hot')
     const loading = ref(false)
     const hotList = ref([])
@@ -101,11 +112,20 @@ export default {
 
     const handleTabClick = (tab) => {
       activeTab.value = tab.props.name
-      fetchRankingList(tab.props.name)
+      if (tab.props.name !== 'view') {
+        fetchRankingList(tab.props.name)
+      }
+    }
+
+    // 处理电影点击事件
+    const handleMovieClick = (movieId) => {
+      router.push(`/movie/${movieId}`)
     }
 
     onMounted(() => {
-      fetchRankingList(activeTab.value)
+      if (activeTab.value !== 'view') {
+        fetchRankingList(activeTab.value)
+      }
     })
 
     return {
@@ -113,7 +133,8 @@ export default {
       loading,
       hotList,
       recommendedList,
-      handleTabClick
+      handleTabClick,
+      handleMovieClick
     }
   }
 }

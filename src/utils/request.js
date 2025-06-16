@@ -24,8 +24,8 @@ service.interceptors.request.use(
       // 如果请求需要认证但没有token，直接拒绝
       const requiresAuth = !config.url.includes('/login') && 
                          !config.url.includes('/register') &&
-                         !config.url.includes('/public')
-      
+                         !config.url.includes('/public')&&
+                         !config.url.includes('/check-username')
       if (requiresAuth) {
         return Promise.reject(new Error('请先登录'))
       }
@@ -94,5 +94,6 @@ service.interceptors.response.use(
     throw error
   }
 )
+
 
 export default service 

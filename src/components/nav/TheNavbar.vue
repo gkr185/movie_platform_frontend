@@ -112,6 +112,8 @@ import { ElMessage } from 'element-plus'
 export default {
   name: 'TheNavbar',
   components: {
+    Search,
+    Clock,
     Timer,
     Moon,
     Sunny,

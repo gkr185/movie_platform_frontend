@@ -72,9 +72,9 @@
                   <el-icon><Timer /></el-icon>
                   <template #title>观看历史</template>
                 </el-menu-item>
-                <el-menu-item index="/user/statistics">
-                  <el-icon><DataLine /></el-icon>
-                  <template #title>数据统计</template>
+                <el-menu-item index="/user/feedback">
+                  <el-icon><ChatLineSquare /></el-icon>
+                  <template #title>用户反馈</template>
                 </el-menu-item>
                 <el-divider />
                 <el-menu-item @click="handleLogout">
@@ -115,7 +115,7 @@ import { useStore } from 'vuex'
 import { useRoute, useRouter } from 'vue-router'
 import { 
   User, UserFilled, Trophy, Star, Timer, 
-  DataLine, Fold, Expand, Plus, SwitchButton, Edit, Lock 
+  DataLine, Fold, Expand, Plus, SwitchButton, Edit, Lock, ChatLineSquare 
 } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 
@@ -123,7 +123,7 @@ export default {
   name: 'UserCenter',
   components: {
     User, UserFilled, Trophy, Star, Timer, 
-    DataLine, Fold, Expand, Plus, SwitchButton, Edit, Lock
+    DataLine, Fold, Expand, Plus, SwitchButton, Edit, Lock, ChatLineSquare
   },
   setup() {
     const store = useStore()

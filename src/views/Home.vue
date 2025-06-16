@@ -17,22 +17,32 @@
       title="最新上映"
       type="new"
     />
+
+    <!-- 观看排行榜 -->
+    <view-ranking-list 
+      title="观看排行榜"
+      :is-compact="true"
+      :limit="10"
+      @movie-click="handleMovieClick"
+    />
   </div>
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import MovieBanner from '@/components/movie/MovieBanner.vue'
 import MovieSection from '@/components/MovieSection.vue'
+import ViewRankingList from '@/components/ViewRankingList.vue'
 
 export default {
   name: 'Home',
   components: {
     MovieBanner,
-    MovieSection
+    MovieSection,
+    ViewRankingList
   },
   setup() {
     const store = useStore()
@@ -58,12 +68,21 @@ export default {
       }
     }
 
-    // 获取轮播图数据
-    store.dispatch('fetchBanners')
+    // 处理电影点击事件
+    const handleMovieClick = (movieId) => {
+      router.push(`/movie/${movieId}`)
+    }
+
+    // 生命周期钩子
+    onMounted(() => {
+      // 获取轮播图数据
+      store.dispatch('fetchBanners')
+    })
 
     return {
       banners,
-      handleAddToFavorites
+      handleAddToFavorites,
+      handleMovieClick
     }
   }
 }
@@ -131,6 +150,71 @@ export default {
             margin: 8px 0 0;
             color: #ff9900;
             font-weight: bold;
+          }
+        }
+      }
+    }
+  }
+
+
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .home {
+    .view-ranking-section {
+      margin: 0 16px 20px;
+
+      .ranking-content {
+        .ranking-list {
+          .ranking-item {
+            padding: 12px 16px;
+
+            .rank-number {
+              width: 32px;
+              height: 32px;
+              font-size: 14px;
+              margin-right: 12px;
+            }
+
+            .movie-poster {
+              width: 50px;
+              height: 66px;
+              margin-right: 12px;
+            }
+
+            .movie-info {
+              .movie-title {
+                font-size: 14px;
+                -webkit-line-clamp: 1;
+              }
+
+              .movie-meta {
+                gap: 8px;
+
+                .year, .rating {
+                  font-size: 12px;
+                }
+              }
+
+              .movie-tags {
+                display: none;
+              }
+            }
+
+            .view-stats {
+              .view-count {
+                font-size: 16px;
+
+                .el-icon {
+                  font-size: 14px;
+                }
+              }
+
+              .view-label {
+                font-size: 11px;
+              }
+            }
           }
         }
       }

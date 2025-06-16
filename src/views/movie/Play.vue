@@ -129,6 +129,7 @@ import {
 } from '@element-plus/icons-vue'
 import { formatDistanceToNow } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { movieViewApi } from '@/api/movieView'
 import CommentEditor from '@/components/comment/CommentEditor.vue'
 import CommentList from '@/components/comment/CommentList.vue'
 import RelatedMovies from '@/components/movie/RelatedMovies.vue'
@@ -160,6 +161,7 @@ export default {
     const playbackTimer = ref(null)
     const updateTimer = ref(null)
     const lastUpdateTime = ref(0)
+    const hasRecordedView = ref(false) // 标记是否已记录观看次数
 
     // 获取电影ID
     const movieId = computed(() => route.params.id)
@@ -183,6 +185,42 @@ export default {
 
     // 获取当前广告
     const currentAd = computed(() => store.getters['ad/currentAd'])
+
+    // 获取当前用户信息
+    const currentUser = computed(() => store.getters['user/userInfo'])
+
+    // 记录VIP用户观看次数
+    const recordVipView = async () => {
+      try {
+        // 检查是否已记录过观看次数
+        if (hasRecordedView.value) {
+          return
+        }
+
+        // 检查用户是否登录且为VIP
+        if (!isLoggedIn.value || !store.getters['user/isVIP']) {
+          console.log('用户未登录或非VIP，跳过观看次数记录')
+          return
+        }
+
+        // 检查是否有有效的用户ID和电影ID
+        const userId = currentUser.value?.id || currentUser.value?.userId
+        if (!userId || !movieId.value) {
+          console.warn('缺少用户ID或电影ID，无法记录观看次数')
+          return
+        }
+
+        console.log('记录VIP用户观看次数:', { movieId: movieId.value, userId })
+        
+        await movieViewApi.addVipView(movieId.value, userId)
+        hasRecordedView.value = true
+        console.log('VIP观看次数记录成功')
+        
+      } catch (error) {
+        console.error('记录VIP观看次数失败:', error)
+        // 不显示错误消息给用户，避免影响观看体验
+      }
+    }
 
     // 创建视频 Blob URL
     const createVideoBlobUrl = async (url) => {
@@ -358,6 +396,9 @@ export default {
       store.dispatch('movie/updatePlaybackState', {
         isPlaying: true
       })
+      
+      // 开始播放时记录VIP观看次数（只记录一次）
+      recordVipView()
     }
 
     const handlePause = () => {
@@ -433,6 +474,7 @@ export default {
     // 加载电影数据
     const loadMovieData = async (id) => {
       isLoading.value = true
+      hasRecordedView.value = false // 重置观看记录状态
       try {
         // 检查用户是否登录
         if (!store.getters['user/isLoggedIn']) {
@@ -549,12 +591,14 @@ export default {
         clearTimeout(updateTimer.value)
       }
       showAd.value = false // 重置广告状态
+      hasRecordedView.value = false // 重置观看记录状态
     })
 
     // 监听路由变化
     watch(() => route.params.id, (newId, oldId) => {
       if (newId !== oldId) {
         showAd.value = true // 切换视频时重置广告状态
+        hasRecordedView.value = false // 重置观看记录状态
         loadMovieData(newId)
       }
     })

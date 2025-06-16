@@ -1,11 +1,11 @@
-import request from '@/utils/request'
+import axios from 'axios'
 import { getToken } from '@/utils/auth'
-import { API_URLS, TIMEOUT } from './config'
+import { API_BASE_URL, API_URLS } from './config'
 
-// 创建 axios 实例
-const historyApi = request.create({
-  baseURL: process.env.VUE_APP_API_BASE_URL || '',
-  timeout: TIMEOUT
+// 创建独立的axios实例避免循环依赖
+const historyApi = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000
 })
 
 // 请求拦截器
@@ -18,22 +18,21 @@ historyApi.interceptors.request.use(
     return config
   },
   error => {
-    console.error('观看历史请求配置错误:', error)
     return Promise.reject(error)
   }
 )
 
 // 响应拦截器
 historyApi.interceptors.response.use(
-  response => response.data,
+  response => {
+    return response.data
+  },
   error => {
-    console.error('观看历史请求失败:', {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      message: error.message
-    })
-    return Promise.reject(error)
+    if (error.response?.status === 401) {
+      // 处理401错误但不引用store避免循环依赖
+      console.error('认证失败，请重新登录')
+    }
+    throw error
   }
 )
 

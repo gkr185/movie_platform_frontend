@@ -3,6 +3,7 @@ export const API_BASE_URL = '' // 使用相对路径，让代理处理
 
 // API 请求超时时间
 export const API_TIMEOUT = 15000
+export const TIMEOUT = API_TIMEOUT // 为了兼容性添加 TIMEOUT 别名
 
 // API 接口路径
 export const API_URLS = {
@@ -89,5 +90,13 @@ export const API_URLS = {
     BY_FILENAME: '/api/files/filename/{fileName}', // 根据文件名获取文件
     ALL: '/api/files/all', // 获取所有文件
     HEALTH: '/api/files/health' // 健康检查
+  },
+  // 电影观看统计相关接口
+  MOVIE_VIEW: {
+    ADD_VIP_VIEW: '/api/moviesView/{movieId}/users/{userId}', // 增加VIP用户观看次数
+    BY_VIEW_COUNT: '/api/moviesView/movies', // 按观看次数排序的电影列表
+    VIEW_COUNT: '/api/moviesView/{movieId}/count', // 获取特定电影的观看次数
+    MOVIE_STATS: '/api/moviesView/movies/{movieId}/stats', // 电影观看统计
+    USER_STATS: '/api/moviesView/users/{userId}/stats' // 用户观看统计
   }
 }
