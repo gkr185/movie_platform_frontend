@@ -67,6 +67,33 @@ module.exports = defineConfig({
         pathRewrite: {
           '^/api/advertisements': '/api/advertisements'
         }
+      },
+      '/api/files': {
+        target: 'http://localhost:8068',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/api/files': '/api/files'
+        }
+      },
+      '/uploads': {
+        target: 'http://localhost:8068',
+        changeOrigin: true,
+        secure: false,
+        logLevel: 'debug',
+        pathRewrite: {
+          '^/uploads': '/uploads'
+        },
+        onProxyRes: function(proxyRes, req, res) {
+          // 确保响应包含 CORS 头
+          proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+          proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+          proxyRes.headers['Access-Control-Allow-Headers'] = '*';
+          // 对于视频文件，添加范围请求支持
+          if (req.url.includes('.mp4') || req.url.includes('.avi') || req.url.includes('.mov')) {
+            proxyRes.headers['Accept-Ranges'] = 'bytes';
+            proxyRes.headers['Cache-Control'] = 'no-cache';
+          }
+        }
       }
     }
   }

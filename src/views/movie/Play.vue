@@ -187,7 +187,15 @@ export default {
     // 创建视频 Blob URL
     const createVideoBlobUrl = async (url) => {
       try {
-        const response = await fetch(url)
+        // 将文件上传服务的URL转换为通过代理访问
+        let proxyUrl = url
+        if (url.startsWith('http://localhost:8068/uploads/')) {
+          // 转换为相对路径，通过Vue代理访问
+          proxyUrl = url.replace('http://localhost:8068', '')
+          console.log('转换视频URL:', url, '->', proxyUrl)
+        }
+        
+        const response = await fetch(proxyUrl)
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }

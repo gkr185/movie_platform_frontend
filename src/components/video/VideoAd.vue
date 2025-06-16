@@ -15,7 +15,7 @@
     <video
       ref="adPlayer"
       class="ad-player"
-      :src="currentVideoAd?.videoUrl"
+      :src="adVideoUrl"
       @timeupdate="handleTimeUpdate"
       @ended="handleAdEnded"
       @loadedmetadata="handleAdLoaded"
@@ -104,6 +104,20 @@ const canSkip = computed(() => {
   const can = isVIP.value || currentTime.value >= skipAfter
   console.log('广告是否可以跳过:', can, 'VIP:', isVIP.value, '当前时间:', currentTime.value)
   return can
+})
+
+// 处理广告视频URL，转换为代理访问
+const adVideoUrl = computed(() => {
+  const url = currentVideoAd.value?.videoUrl
+  if (!url) return null
+  
+  // 将文件上传服务的URL转换为通过代理访问
+  if (url.startsWith('http://localhost:8068/uploads/')) {
+    const proxyUrl = url.replace('http://localhost:8068', '')
+    console.log('转换广告视频URL:', url, '->', proxyUrl)
+    return proxyUrl
+  }
+  return url
 })
 
 // 处理鼠标移入

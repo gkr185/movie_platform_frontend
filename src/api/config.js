@@ -76,5 +76,18 @@ export const API_URLS = {
     GENERATE_QRCODE: '/api/payment/generate-qrcode', // 生成支付二维码
     CHECK_STATUS: '/api/payment/status/{orderId}', // 查询支付状态
     CALLBACK: '/api/payment/callback' // 支付回调处理
+  },
+  // 文件上传相关接口
+  FILE: {
+    UPLOAD: '/api/files/upload', // 上传单个文件
+    UPLOAD_AND_UPDATE: '/api/files/upload-and-update', // 上传文件并更新数据库
+    UPLOAD_BATCH: '/api/files/upload/batch', // 批量上传文件
+    BY_CATEGORY: '/api/files/category/{category}', // 根据分类获取文件
+    BY_RELATED_ID: '/api/files/related/{relatedId}', // 根据关联ID获取文件
+    BY_CATEGORY_AND_RELATED: '/api/files/category/{category}/related/{relatedId}', // 根据分类和关联ID获取文件
+    DELETE: '/api/files/{fileId}', // 删除文件
+    BY_FILENAME: '/api/files/filename/{fileName}', // 根据文件名获取文件
+    ALL: '/api/files/all', // 获取所有文件
+    HEALTH: '/api/files/health' // 健康检查
   }
 }

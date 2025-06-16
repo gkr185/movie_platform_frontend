@@ -15,16 +15,41 @@
         @submit.prevent="handleSubmit"
       >
         <el-form-item label="头像" class="avatar-item">
-          <el-upload
-            class="avatar-uploader"
-            :show-file-list="false"
-            :before-upload="beforeAvatarUpload"
-            :http-request="handleAvatarUpload"
-          >
-            <img v-if="formData.avatar" :src="formData.avatar" class="avatar" />
-            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-          </el-upload>
-          <div class="avatar-tip">点击上传头像</div>
+          <div class="avatar-upload-section">
+            <FileUpload
+              ref="avatarUploadRef"
+              category="avatar"
+              :related-id="userId"
+              url-type="avatar"
+              :auto-update-db="!!userId"
+              upload-text="上传头像"
+              :max-size="5"
+              :file-types="['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']"
+              @upload-success="handleAvatarUploadSuccess"
+            >
+              <template #trigger>
+                <div class="avatar-uploader">
+                  <img v-if="formData.avatar" :src="formData.avatar" class="avatar" />
+                  <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
+                </div>
+              </template>
+            </FileUpload>
+            
+            <div class="manual-input" style="margin-top: 10px;">
+              <el-input
+                v-model="formData.avatar"
+                placeholder="或直接输入头像URL"
+                size="small"
+              >
+                <template #prepend>头像URL</template>
+              </el-input>
+            </div>
+            
+            <div class="avatar-tip">
+              <p>点击上传头像，支持JPG、PNG、GIF等格式</p>
+              <p>文件大小不超过5MB，建议使用正方形图片</p>
+            </div>
+          </div>
         </el-form-item>
 
         <el-form-item label="邮箱" prop="email">
@@ -53,25 +78,34 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
+import FileUpload from '@/components/FileUpload.vue'
 
 export default {
   name: 'UpdateProfile',
   components: {
-    Plus
+    Plus,
+    FileUpload
   },
   setup() {
     const store = useStore()
     const formRef = ref(null)
+    const avatarUploadRef = ref(null)
     const loading = ref(false)
 
     const formData = reactive({
       email: '',
       phone: '',
       avatar: ''
+    })
+
+    // 获取当前用户ID
+    const userId = computed(() => {
+      const userInfo = store.getters['user/userInfo']
+      return userInfo?.id || userInfo?.userId
     })
 
     const rules = {
@@ -93,38 +127,16 @@ export default {
       }
     }
 
-    // 头像上传前的验证
-    const beforeAvatarUpload = (file) => {
-      const isLt2M = file.size / 1024 / 1024 < 2
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif']
-
-      if (!allowedTypes.includes(file.type)) {
-        ElMessage.error('上传头像只能是 JPG/PNG/GIF 格式!')
-        return false
-      }
-      if (!isLt2M) {
-        ElMessage.error('上传头像图片大小不能超过 2MB!')
-        return false
-      }
-      return true
-    }
-
-    // 处理头像上传
-    const handleAvatarUpload = async (options) => {
-      try {
-        loading.value = true
-        // 模拟文件上传，实际项目中应该调用后端API上传文件
-        // 这里我们假设文件已经上传到服务器的/uploads/avatars/目录
-        const fileName = options.file.name
-        const avatarUrl = `/uploads/avatars/${fileName}`
-        formData.avatar = avatarUrl
-        
+    // 头像上传成功处理
+    const handleAvatarUploadSuccess = (response) => {
+      if (response.success) {
+        formData.avatar = response.fileUrl
         ElMessage.success('头像上传成功')
-      } catch (error) {
-        console.error('头像上传错误:', error)
-        ElMessage.error('头像上传失败')
-      } finally {
-        loading.value = false
+        
+        // 如果启用了自动更新数据库，则不需要手动保存
+        if (userId.value) {
+          ElMessage.info('头像已自动更新到您的账户')
+        }
       }
     }
 
@@ -166,13 +178,14 @@ export default {
 
     return {
       formRef,
+      avatarUploadRef,
       formData,
       rules,
       loading,
+      userId,
       handleSubmit,
       resetForm,
-      beforeAvatarUpload,
-      handleAvatarUpload
+      handleAvatarUploadSuccess
     }
   }
 }
@@ -201,8 +214,30 @@ export default {
   color: var(--el-text-color-primary);
 }
 
+.avatar-upload-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
 .avatar-uploader {
   text-align: center;
+  border: 1px dashed var(--el-border-color);
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: var(--el-transition-duration-fast);
+  width: 100px;
+  height: 100px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.avatar-uploader:hover {
+  border-color: var(--el-color-primary);
 }
 
 .avatar-uploader .avatar {
@@ -210,19 +245,6 @@ export default {
   height: 100px;
   border-radius: 50%;
   object-fit: cover;
-}
-
-.avatar-uploader .el-upload {
-  border: 1px dashed var(--el-border-color);
-  border-radius: 50%;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: var(--el-transition-duration-fast);
-}
-
-.avatar-uploader .el-upload:hover {
-  border-color: var(--el-color-primary);
 }
 
 .avatar-uploader-icon {
@@ -238,10 +260,20 @@ export default {
   align-items: center;
 }
 
+.manual-input {
+  width: 100%;
+  max-width: 400px;
+}
+
 .avatar-tip {
   font-size: 12px;
   color: var(--el-text-color-secondary);
-  margin-top: 8px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.avatar-tip p {
+  margin: 4px 0;
 }
 
 .avatar-item :deep(.el-form-item__content) {
