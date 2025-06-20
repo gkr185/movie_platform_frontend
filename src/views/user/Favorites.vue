@@ -3,15 +3,6 @@
     <template v-if="isLoggedIn">
       <div class="favorites-header">
         <h2>我的收藏</h2>
-        <div class="header-actions">
-          <el-input
-            v-model="searchQuery"
-            placeholder="搜索收藏的影片"
-            prefix-icon="Search"
-            clearable
-            class="search-input"
-          />
-        </div>
       </div>
 
       <el-empty v-if="!filteredFavorites.length" :description="searchQuery ? '未找到匹配的影片' : '暂无收藏'" />

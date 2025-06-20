@@ -1,51 +1,6 @@
 
 
-// VIP套餐数据
-export const mockVIPPlans = [
-  {
-    id: 1,
-    name: '月度会员',
-    price: 30,
-    originalPrice: 45,
-    duration: 1,
-    features: [
-      '1080P高清画质',
-      '去除广告',
-      '支持投屏',
-      '优先客服'
-    ]
-  },
-  {
-    id: 2,
-    name: '季度会员',
-    price: 88,
-    originalPrice: 135,
-    duration: 3,
-    features: [
-      '1080P高清画质',
-      '去除广告',
-      '支持投屏',
-      '优先客服',
-      '赠送电影券x2'
-    ]
-  },
-  {
-    id: 3,
-    name: '年度会员',
-    price: 298,
-    originalPrice: 540,
-    duration: 12,
-    features: [
-      '4K超清画质',
-      '去除广告',
-      '支持投屏',
-      'VIP专属客服',
-      '赠送电影券x12',
-      '生日特权'
-    ],
-    recommended: true
-  }
-]
+
 
 
 
@@ -82,17 +37,17 @@ export const mockBanners = [
     active: true
   },
   {
-    id: 3,
-    title: '铃芽之旅',
-    subtitle: '新海诚最新力作',
-    description: '将门锁住是为了保护谁？少女铃芽邂逅了正在寻找神秘之门的青年草太，并跟随他踏上了一段奇妙的旅程。',
-    image: '/uploads/banners/suzume.jpg',
-    link: '/movie/7',
-    score: 8.3,
-    quality: '4K',
-    resolution: 'ULTRA HD',
-    tags: ['动画', '奇幻'],
-    active: true
+    "id": 3,
+    "title": "哪吒2",
+    "subtitle": "魔童再临",
+    "description": "哪吒重生归来，面临新的天地浩劫。这一次，他将以元神之力对抗混沌之劫，守护苍生改写天命。",
+    "image": "/uploads/banners/nezha2.jpg",
+    "link": "/movie/nezha2",
+    "score": 9.1,
+    "quality": "4K",
+    "resolution": "ULTRA HD",
+    "tags": ["动画", "动作", "神话"],
+    "active": true
   },
   {
     id: 4,

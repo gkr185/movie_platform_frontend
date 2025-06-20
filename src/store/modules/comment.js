@@ -231,8 +231,10 @@ export default {
         const userInfoMap = new Map()
         await Promise.all(Array.from(userIds).map(async userId => {
           try {
-            const userInfo = await getUserInfo(userId)
+            const response = await getUserInfo(userId)
+            const userInfo = response.data || response // 处理不同的响应格式
             userInfoMap.set(userId, userInfo)
+            console.log(`[Vuex Comment] 获取用户 ${userId} 信息成功:`, userInfo)
           } catch (error) {
             console.error(`获取用户 ${userId} 信息失败:`, error)
             // 设置默认用户信息
@@ -317,8 +319,8 @@ export default {
         replyTo
       })
 
-      // 获取当前用户ID
-      const userId = rootState.user?.user?.id
+      // 获取当前用户ID - 优先从userInfo获取，然后从user获取
+      const userId = rootState.user?.userInfo?.id || rootState.user?.user?.id
       if (!userId) {
         throw new Error('请先登录')
       }
@@ -337,7 +339,9 @@ export default {
         // 获取用户信息
         let userInfo
         try {
-          userInfo = await getUserInfo(userId)
+          const response = await getUserInfo(userId)
+          userInfo = response.data || response // 处理不同的响应格式
+          console.log('[Vuex Comment] 获取用户信息成功:', userInfo)
         } catch (error) {
           console.error('获取用户信息失败:', error)
           userInfo = {

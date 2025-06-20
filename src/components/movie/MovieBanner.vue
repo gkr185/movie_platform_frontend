@@ -30,19 +30,7 @@
               </li>
             </ul>
             <p class="description">{{ banner.description }}</p>
-            <div class="buttons">
-              <router-link :to="banner.link" class="play-btn">
-                <el-icon><VideoPlay /></el-icon> 
-                {{ banner.type === 'promotion' ? '立即查看' : '观看预告片' }}
-              </router-link>
-              <el-button 
-                v-if="!banner.type"
-                class="add-btn" 
-                :icon="Plus" 
-                circle 
-                @click="onAddToFavorites(banner)"
-              ></el-button>
-            </div>
+            
           </div>
         </div>
       </el-carousel-item>

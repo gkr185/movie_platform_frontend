@@ -29,6 +29,95 @@
   --comment-editor-bg: #ffffff;
   --comment-editor-border: #e4e7ed;
   --comment-divider: #e4e7ed;
+
+  // 排行榜主题
+  --ranking-bg: #ffffff;
+  --ranking-card-bg: #ffffff;
+  --ranking-card-hover-bg: #f8f9fa;
+  --ranking-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --ranking-card-hover-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --ranking-rank-color: #909399;
+  --ranking-rank-top3-color: #ff9900;
+  --ranking-rank-bg: #f5f7fa;
+  --ranking-title-color: #303133;
+  --ranking-meta-color: #909399;
+  --ranking-stats-color: #606266;
+  --ranking-border: #e4e7ed;
+  --ranking-tab-bg: #ffffff;
+  --ranking-vip-bg: linear-gradient(135deg, #ff9900, #ffb366);
+  
+  // 排行榜页面头部渐变背景
+  --ranking-header-gradient: linear-gradient(135deg, #409eff, #d579ff);
+  --ranking-header-pattern-opacity: 0.3;
+  --ranking-header-text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+
+  // 最新电影页面主题
+  --newest-bg: #ffffff;
+  --newest-header-gradient: linear-gradient(135deg, #67c23a, #ff552b);
+  --newest-header-pattern-opacity: 0.3;
+  --newest-header-text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --newest-card-bg: #ffffff;
+  --newest-card-hover-bg: #f8f9fa;
+  --newest-card-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --newest-card-hover-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  --newest-title-color: #303133;
+  --newest-meta-color: #909399;
+  --newest-border: #e4e7ed;
+  --newest-vip-bg: linear-gradient(135deg, #ff9900, #ffb366);
+  --newest-date-color: #67c23a;
+  --newest-category-bg: #f0f9ff;
+  --newest-category-color: #409eff;
+
+  // 个人资料页面主题
+  --profile-bg: #ffffff;
+  --profile-header-gradient: linear-gradient(135deg, #409eff, #8b5cf6);
+  --profile-header-pattern-opacity: 0.3;
+  --profile-header-text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --profile-card-bg: #ffffff;
+  --profile-card-hover-bg: #f8f9fa;
+  --profile-card-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --profile-card-hover-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  --profile-stat-bg: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  --profile-stat-hover-bg: linear-gradient(135deg, #f1f5f9, #ddd6fe);
+  --profile-stat-border: #e2e8f0;
+  --profile-stat-hover-border: #8b5cf6;
+  --profile-title-color: #1e293b;
+  --profile-text-color: #475569;
+  --profile-meta-color: #64748b;
+  --profile-vip-bg: linear-gradient(135deg, #fbbf24, #f59e0b);
+  --profile-vip-shadow: 0 4px 15px rgba(251, 191, 36, 0.3);
+  --profile-avatar-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+
+  // VIP页面主题
+  --vip-bg: #ffffff;
+  --vip-header-gradient: linear-gradient(135deg, #ffbf34, #bbff00);
+  --vip-header-pattern-opacity: 0.3;
+  --vip-header-text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --vip-card-bg: #ffffff;
+  --vip-card-hover-bg: #f8f9fa;
+  --vip-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --vip-card-hover-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  --vip-plan-recommended-bg: linear-gradient(135deg, #409eff, #67c23a);
+  --vip-plan-recommended-shadow: 0 8px 30px rgba(64, 158, 255, 0.3);
+  --vip-plan-basic-bg: linear-gradient(135deg, #909399, #c0c4cc);
+  --vip-plan-premium-bg: linear-gradient(135deg, #f56c6c, #e6a23c);
+  --vip-benefit-bg: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  --vip-benefit-hover-bg: linear-gradient(135deg, #f1f5f9, #e7e3ff);
+  --vip-benefit-icon-color: #409eff;
+  --vip-price-color: #f56c6c;
+  --vip-price-bg: linear-gradient(135deg, #fef2f2, #fee2e2);
+  --vip-discount-color: #67c23a;
+  --vip-discount-bg: linear-gradient(135deg, #f0f9ff, #dcfce7);
+  --vip-payment-bg: #ffffff;
+  --vip-payment-border: #e2e8f0;
+  --vip-payment-hover-border: #409eff;
+  --vip-qrcode-bg: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  --vip-status-success-bg: linear-gradient(135deg, #f0f9ff, #dcfce7);
+  --vip-status-success-color: #059669;
+  --vip-status-warning-bg: linear-gradient(135deg, #fffbeb, #fef3c7);
+  --vip-status-warning-color: #d97706;
+  --vip-status-danger-bg: linear-gradient(135deg, #fef2f2, #fee2e2);
+  --vip-status-danger-color: #dc2626;
 }
 
 [data-theme='dark'] {
@@ -61,6 +150,95 @@
   --comment-editor-bg: #2a2a2a;
   --comment-editor-border: #363636;
   --comment-divider: #363636;
+
+  // 排行榜主题
+  --ranking-bg: #1a1a1a;
+  --ranking-card-bg: #2a2a2a;
+  --ranking-card-hover-bg: #363636;
+  --ranking-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --ranking-card-hover-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --ranking-rank-color: #909399;
+  --ranking-rank-top3-color: #ff9900;
+  --ranking-rank-bg: #363636;
+  --ranking-title-color: #ffffff;
+  --ranking-meta-color: rgba(255, 255, 255, 0.7);
+  --ranking-stats-color: rgba(255, 255, 255, 0.8);
+  --ranking-border: #363636;
+  --ranking-tab-bg: #2a2a2a;
+  --ranking-vip-bg: linear-gradient(135deg, #ff9900, #ffb366);
+  
+  // 排行榜页面头部渐变背景 - 暗色主题
+  --ranking-header-gradient: linear-gradient(135deg, #002daa, #7a007e);
+  --ranking-header-pattern-opacity: 0.2;
+  --ranking-header-text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+
+  // 最新电影页面主题 - 暗色主题
+  --newest-bg: #1a1a1a;
+  --newest-header-gradient: linear-gradient(135deg, #ce4b00, #00a516);
+  --newest-header-pattern-opacity: 0.2;
+  --newest-header-text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --newest-card-bg: #2a2a2a;
+  --newest-card-hover-bg: #363636;
+  --newest-card-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --newest-card-hover-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  --newest-title-color: #ffffff;
+  --newest-meta-color: rgba(255, 255, 255, 0.7);
+  --newest-border: #363636;
+  --newest-vip-bg: linear-gradient(135deg, #ff9900, #ffb366);
+  --newest-date-color: #95d475;
+  --newest-category-bg: #1e3a8a;
+  --newest-category-color: #79bbff;
+
+  // 个人资料页面主题 - 暗色主题
+  --profile-bg: #1a1a1a;
+  --profile-header-gradient: linear-gradient(135deg, #1e40af, #7c3aed);
+  --profile-header-pattern-opacity: 0.2;
+  --profile-header-text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --profile-card-bg: #2a2a2a;
+  --profile-card-hover-bg: #363636;
+  --profile-card-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --profile-card-hover-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  --profile-stat-bg: linear-gradient(135deg, #2a2a2a, #363636);
+  --profile-stat-hover-bg: linear-gradient(135deg, #363636, #4a4a4a);
+  --profile-stat-border: #363636;
+  --profile-stat-hover-border: #8b5cf6;
+  --profile-title-color: #ffffff;
+  --profile-text-color: rgba(255, 255, 255, 0.9);
+  --profile-meta-color: rgba(255, 255, 255, 0.7);
+  --profile-vip-bg: linear-gradient(135deg, #fbbf24, #f59e0b);
+  --profile-vip-shadow: 0 4px 15px rgba(251, 191, 36, 0.3);
+  --profile-avatar-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+
+  // VIP页面主题 - 暗色主题
+  --vip-bg: #1a1a1a;
+  --vip-header-gradient: linear-gradient(135deg, #ff6f00, #ccad00);
+  --vip-header-pattern-opacity: 0.2;
+  --vip-header-text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --vip-card-bg: #2a2a2a;
+  --vip-card-hover-bg: #363636;
+  --vip-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --vip-card-hover-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  --vip-plan-recommended-bg: linear-gradient(135deg, #1e40af, #059669);
+  --vip-plan-recommended-shadow: 0 8px 30px rgba(30, 64, 175, 0.4);
+  --vip-plan-basic-bg: linear-gradient(135deg, #4b5563, #6b7280);
+  --vip-plan-premium-bg: linear-gradient(135deg, #dc2626, #ea580c);
+  --vip-benefit-bg: linear-gradient(135deg, #2a2a2a, #363636);
+  --vip-benefit-hover-bg: linear-gradient(135deg, #363636, #4a4a4a);
+  --vip-benefit-icon-color: #60a5fa;
+  --vip-price-color: #f87171;
+  --vip-price-bg: linear-gradient(135deg, #2a2a2a, #363636);
+  --vip-discount-color: #4ade80;
+  --vip-discount-bg: linear-gradient(135deg, #2a2a2a, #363636);
+  --vip-payment-bg: #2a2a2a;
+  --vip-payment-border: #363636;
+  --vip-payment-hover-border: #60a5fa;
+  --vip-qrcode-bg: linear-gradient(135deg, #2a2a2a, #363636);
+  --vip-status-success-bg: linear-gradient(135deg, #2a2a2a, #363636);
+  --vip-status-success-color: #4ade80;
+  --vip-status-warning-bg: linear-gradient(135deg, #2a2a2a, #363636);
+  --vip-status-warning-color: #fbbf24;
+  --vip-status-danger-bg: linear-gradient(135deg, #2a2a2a, #363636);
+  --vip-status-danger-color: #f87171;
 }
 
 body {

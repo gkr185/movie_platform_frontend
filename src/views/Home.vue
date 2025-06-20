@@ -6,6 +6,16 @@
       @add-to-favorites="handleAddToFavorites"
     />
 
+
+
+     <!-- 观看排行榜 -->
+     <view-ranking-list 
+      title="观看排行榜"
+      :is-compact="true"
+      :limit="10"
+      @movie-click="handleMovieClick"
+    />
+
     <!-- 热门推荐 -->
     <movie-section
       title="热门推荐"
@@ -18,13 +28,7 @@
       type="new"
     />
 
-    <!-- 观看排行榜 -->
-    <view-ranking-list 
-      title="观看排行榜"
-      :is-compact="true"
-      :limit="10"
-      @movie-click="handleMovieClick"
-    />
+   
   </div>
 </template>
 

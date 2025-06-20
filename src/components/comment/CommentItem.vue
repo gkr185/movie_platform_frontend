@@ -28,7 +28,7 @@
             :class="{ 'is-liked': comment.liked }"
             @click="handleLike"
           >
-            <el-icon><ThumbsUp /></el-icon>
+            <el-icon><Like /></el-icon>
             {{ comment.likeCount || 0 }}
           </el-button>
           <el-button 
@@ -37,7 +37,7 @@
             :class="{ 'is-disliked': comment.disliked }"
             @click="handleDislike"
           >
-            <el-icon><ThumbsDown /></el-icon>
+            <el-icon><DisLike /></el-icon>
             {{ comment.dislikeCount || 0 }}
           </el-button>
           <el-button 
@@ -68,7 +68,7 @@
           :movie-id="movieId"
           :parent-id="comment.id"
           :reply-to="comment.user?.username"
-          @submit="handleReplySubmit"
+          @success="handleReplySubmit"
           @cancel="showReplyEditor = false"
         />
       </div>
@@ -94,7 +94,7 @@
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
 import { ElMessageBox } from 'element-plus'
-import { ThumbsUp, ThumbsDown, ChatLineRound, Delete } from '@element-plus/icons-vue'
+import { Like, DisLike, ChatLineRound, Delete } from '@element-plus/icons-vue'
 import { formatDistanceToNow } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import CommentEditor from './CommentEditor.vue'
@@ -106,8 +106,8 @@ export default {
   components: {
     CommentEditor,
     ReplyItem,
-    ThumbsUp,
-    ThumbsDown,
+    Like,
+    DisLike,
     ChatLineRound,
     Delete
   },
@@ -216,18 +216,9 @@ export default {
       }
     }
 
-    // 处理回复提交
-    const handleReplySubmit = async (reply) => {
-      try {
-        await store.dispatch('comment/submitComment', {
-          ...reply,
-          movieId: props.movieId,
-          parentId: props.comment.id
-        })
-        showReplyEditor.value = false
-      } catch (error) {
-        console.error('提交回复失败:', error)
-      }
+    // 处理回复提交成功
+    const handleReplySubmit = () => {
+      showReplyEditor.value = false
     }
 
     return {
@@ -247,27 +238,70 @@ export default {
 .comment-item {
   display: flex;
   gap: 16px;
-  padding: 16px;
-  border-radius: 8px;
-  transition: all 0.3s ease;
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--comment-bg);
+  border: 1px solid var(--comment-border);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+
+  // 装饰性渐变效果
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(64, 158, 255, 0.02), rgba(103, 194, 58, 0.02));
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
 
   &:hover {
-    background-color: var(--comment-hover-bg);
+    background: var(--comment-hover-bg);
+    border-color: var(--el-color-primary-light-7);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+
+    &::before {
+      opacity: 1;
+    }
+
+    .comment-avatar .el-avatar {
+      transform: scale(1.05);
+      border-color: var(--el-color-primary);
+    }
   }
 
   &.is-reply {
     margin-left: 56px;
-    background-color: var(--comment-reply-bg);
-    border-radius: 6px;
+    background: var(--comment-reply-bg);
+    border-radius: 12px;
+    padding: 16px;
+    border-left: 3px solid var(--el-color-primary-light-7);
+
+    &:hover {
+      border-left-color: var(--el-color-primary);
+    }
   }
   
   .comment-avatar {
     flex-shrink: 0;
 
     .el-avatar {
-      background: var(--el-color-primary);
-      color: #fff;
-      font-weight: bold;
+      background: linear-gradient(135deg, var(--el-color-primary), var(--el-color-primary-light-3));
+      color: white;
+      font-weight: 700;
+      border: 2px solid var(--border-color);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 15px rgba(64, 158, 255, 0.2);
+
+      &:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 20px rgba(64, 158, 255, 0.3);
+      }
     }
   }
   
@@ -279,60 +313,109 @@ export default {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
 
       .comment-info {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 12px;
         flex-wrap: wrap;
 
         .username {
-          font-weight: 600;
+          font-weight: 700;
           color: var(--comment-text);
+          font-size: 15px;
+          text-decoration: none;
+          transition: color 0.3s;
+
+          &:hover {
+            color: var(--el-color-primary);
+          }
         }
 
         .rating {
           display: flex;
           align-items: center;
+          padding: 4px 8px;
+          background: var(--input-bg-color);
+          border-radius: 8px;
+
+          :deep(.el-rate) {
+            .el-rate__icon {
+              font-size: 14px;
+              margin-right: 2px;
+            }
+          }
         }
 
         .time {
           color: var(--comment-text-light);
           font-size: 12px;
+          padding: 4px 8px;
+          background: var(--input-bg-color);
+          border-radius: 8px;
+          font-weight: 500;
         }
       }
 
       .comment-actions {
         display: flex;
-        gap: 12px;
+        gap: 8px;
+        align-items: center;
 
         .el-button {
           display: flex;
           align-items: center;
-          gap: 4px;
+          gap: 6px;
           color: var(--comment-action);
-          padding: 0;
+          padding: 6px 12px;
           height: auto;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 500;
+          background: transparent;
+          border: 1px solid transparent;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
           &:hover {
             color: var(--comment-action-hover);
+            background: var(--input-bg-color);
+            border-color: var(--border-color);
+            transform: translateY(-1px);
           }
 
           &.is-liked {
             color: var(--el-color-primary);
+            background: var(--el-color-primary-light-9);
+            border-color: var(--el-color-primary-light-7);
+
+            &:hover {
+              background: var(--el-color-primary-light-8);
+            }
           }
 
           &.is-disliked {
             color: var(--el-color-danger);
+            background: var(--el-color-danger-light-9);
+            border-color: var(--el-color-danger-light-7);
+
+            &:hover {
+              background: var(--el-color-danger-light-8);
+            }
           }
 
-          &.delete-btn:hover {
-            color: var(--el-color-danger);
+          &.delete-btn {
+            &:hover {
+              color: var(--el-color-danger);
+              background: var(--el-color-danger-light-9);
+              border-color: var(--el-color-danger-light-7);
+            }
           }
 
           .el-icon {
-            margin-right: 4px;
+            font-size: 14px;
           }
         }
       }
@@ -340,30 +423,53 @@ export default {
     
     .comment-text {
       color: var(--comment-text);
-      line-height: 1.6;
-      margin-bottom: 12px;
+      line-height: 1.7;
+      margin-bottom: 16px;
       word-break: break-word;
       white-space: pre-wrap;
+      font-size: 14px;
+      padding: 12px 16px;
+      background: var(--input-bg-color);
+      border-radius: 12px;
+      border-left: 3px solid var(--el-color-primary-light-8);
+      transition: all 0.3s;
+
+      &:hover {
+        background: var(--card-bg-color);
+        border-left-color: var(--el-color-primary);
+      }
     }
     
     .reply-editor {
-      margin: 16px 0;
-      padding: 12px;
-      background-color: var(--comment-editor-bg);
-      border: 1px solid var(--comment-editor-border);
-      border-radius: 6px;
-      transition: all 0.3s ease;
+      margin: 20px 0;
+      padding: 16px;
+      background: var(--comment-editor-bg);
+      border: 2px solid var(--comment-editor-border);
+      border-radius: 12px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
       &:hover {
         border-color: var(--el-color-primary);
-        box-shadow: 0 0 8px rgba(var(--el-color-primary-rgb), 0.2);
+        box-shadow: 0 4px 20px rgba(64, 158, 255, 0.1);
       }
     }
 
     .replies-section {
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 1px solid var(--comment-divider);
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 2px solid var(--comment-divider);
+      position: relative;
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: -1px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--el-color-primary), transparent);
+        opacity: 0.3;
+      }
 
       .reply-item {
         &:not(:last-child) {
@@ -371,6 +477,131 @@ export default {
           padding-bottom: 16px;
           border-bottom: 1px solid var(--comment-divider);
         }
+      }
+    }
+  }
+}
+
+// 新增动画效果
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.comment-item {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .comment-item {
+    padding: 16px;
+    border-radius: 12px;
+    gap: 12px;
+
+    &.is-reply {
+      margin-left: 40px;
+      padding: 12px;
+    }
+
+    .comment-content {
+      .comment-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+
+        .comment-info {
+          flex-wrap: wrap;
+          gap: 8px;
+
+          .username {
+            font-size: 14px;
+          }
+
+          .time {
+            font-size: 11px;
+          }
+        }
+
+        .comment-actions {
+          gap: 6px;
+          flex-wrap: wrap;
+
+          .el-button {
+            padding: 4px 8px;
+            font-size: 12px;
+            gap: 4px;
+
+            .el-icon {
+              font-size: 12px;
+            }
+          }
+        }
+      }
+
+      .comment-text {
+        font-size: 13px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+      }
+
+      .reply-editor {
+        margin: 16px 0;
+        padding: 12px;
+      }
+
+      .replies-section {
+        margin-top: 16px;
+        padding-top: 16px;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .comment-item {
+    padding: 12px;
+
+    &.is-reply {
+      margin-left: 20px;
+      padding: 10px;
+    }
+
+    .comment-avatar .el-avatar {
+      width: 32px;
+      height: 32px;
+      font-size: 14px;
+    }
+
+    .comment-content {
+      .comment-header {
+        .comment-info {
+          .username {
+            font-size: 13px;
+          }
+
+          .rating :deep(.el-rate) {
+            .el-rate__icon {
+              font-size: 12px;
+            }
+          }
+        }
+
+        .comment-actions .el-button {
+          padding: 3px 6px;
+          font-size: 11px;
+        }
+      }
+
+      .comment-text {
+        font-size: 12px;
+        padding: 8px 10px;
       }
     }
   }

@@ -30,14 +30,24 @@
           />
         </div>
         
-        <el-button
-          type="primary"
-          :disabled="!canSubmit"
-          @click="handleSubmit"
-          :loading="submitting"
-        >
-          发表评论
-        </el-button>
+        <div class="action-buttons">
+          <el-button
+            v-if="parentId"
+            size="small"
+            @click="$emit('cancel')"
+          >
+            取消
+          </el-button>
+          <el-button
+            type="primary"
+            size="small"
+            :disabled="!canSubmit"
+            @click="handleSubmit"
+            :loading="submitting"
+          >
+            {{ parentId ? '发表回复' : '发表评论' }}
+          </el-button>
+        </div>
       </div>
     </div>
   </div>
@@ -81,12 +91,20 @@ export default {
   },
   
   computed: {
-    ...mapGetters('user', ['isLoggedIn', 'username', 'userAvatar', 'currentUser']),
+    ...mapGetters('user', ['isLoggedIn', 'username', 'userAvatar', 'currentUser', 'userInfo']),
+    
+    // 获取当前用户信息，优先从userInfo获取
+    currentUserInfo() {
+      const userInfo = this.$store.getters['user/userInfo']
+      const user = this.$store.getters['user/currentUser']
+      console.log('[CommentEditor] Getting user info:', { userInfo, user })
+      return userInfo || user
+    },
     
     canSubmit() {
       return this.isLoggedIn && 
              this.content.trim() && 
-             (this.parentId || this.rating) && 
+             (this.parentId > 0 || this.rating > 0) && 
              !this.submitting
     }
   },
@@ -129,7 +147,7 @@ export default {
         throw new Error('请给出评分')
       }
 
-      if (!this.currentUser?.id) {
+      if (!this.currentUserInfo?.id) {
         console.error('[CommentEditor] User ID not found')
         throw new Error('用户信息不完整，请重新登录')
       }
@@ -153,7 +171,7 @@ export default {
           content: this.content.trim(),
           rating: this.rating,
           parentId: this.parentId ? Number(this.parentId) : 0,
-          userId: this.currentUser.id
+          userId: this.currentUserInfo.id
         }
 
         if (this.replyTo) {
@@ -169,6 +187,7 @@ export default {
         
         this.$message.success('评论发表成功')
         this.$emit('success')
+        this.$emit('cancel') // 发表成功后收起编辑器
         
         console.log('[CommentEditor] Comment submitted successfully')
       } catch (error) {
@@ -199,50 +218,174 @@ export default {
     }
   },
 
-  emits: ['success']
+  emits: ['success', 'cancel']
 }
 </script>
 
 <style lang="scss" scoped>
 .comment-editor {
-  background: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+  background: var(--comment-editor-bg);
+  border: 1px solid var(--comment-editor-border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    border-color: var(--el-color-primary-light-5);
+    box-shadow: 0 2px 12px rgba(64, 158, 255, 0.1);
+  }
+
+  &:focus-within {
+    border-color: var(--el-color-primary);
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+  }
 
   .editor-header {
-    margin-bottom: 15px;
+    margin-bottom: 12px;
     
     .user-info {
       display: flex;
       align-items: center;
+      gap: 8px;
+      
+      .el-avatar {
+        border: 1px solid var(--border-color);
+        transition: all 0.3s;
+      }
       
       .username {
-        margin-left: 10px;
         font-weight: 500;
+        color: var(--text-color);
+        font-size: 14px;
       }
     }
     
     .login-tip {
-      color: #606266;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-color-light);
+      font-size: 13px;
+
+      .el-button {
+        font-weight: 500;
+        padding: 0;
+        height: auto;
+        color: var(--el-color-primary);
+        font-size: 13px;
+      }
     }
   }
 
   .editor-content {
+    :deep(.el-textarea) {
+      .el-textarea__inner {
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 13px;
+        line-height: 1.5;
+        resize: vertical;
+        min-height: 80px;
+        transition: all 0.3s;
+        background: var(--input-bg-color);
+        color: var(--text-color);
+
+        &:focus {
+          border-color: var(--el-color-primary);
+          box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+        }
+
+        &::placeholder {
+          color: var(--text-color-light);
+        }
+
+        &:disabled {
+          background: var(--input-bg-color);
+          color: var(--text-color-light);
+          cursor: not-allowed;
+        }
+      }
+    }
+
     .editor-footer {
-      margin-top: 15px;
+      margin-top: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 12px;
 
       .rating {
         display: flex;
         align-items: center;
+        gap: 8px;
         
         .rating-label {
-          margin-right: 10px;
-          color: #606266;
+          color: var(--text-color);
+          font-weight: 500;
+          font-size: 13px;
+        }
+
+        :deep(.el-rate) {
+          .el-rate__icon {
+            font-size: 16px;
+            margin-right: 2px;
+          }
+
+          .el-rate__item.is-active .el-rate__icon {
+            color: #ff9900;
+          }
+        }
+      }
+
+      .action-buttons {
+        display: flex;
+        gap: 8px;
+        position: relative;
+        z-index: 10;
+
+        .el-button {
+          height: 32px;
+          padding: 0 12px;
+          border-radius: 6px;
+          font-weight: 500;
+          font-size: 12px;
+          transition: all 0.3s;
+          position: relative;
+          z-index: 11;
+          pointer-events: auto;
+
+          &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .comment-editor {
+    padding: 12px;
+
+    .editor-content {
+      .editor-footer {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+
+        .rating {
+          justify-content: center;
+        }
+
+        .action-buttons {
+          .el-button {
+            flex: 1;
+            height: 28px;
+          }
         }
       }
     }
