@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { getToken } from './auth'
 import store from '@/store'
 import { ElMessage } from 'element-plus'
 import { API_BASE_URL } from '@/api/config'
@@ -8,28 +7,26 @@ import router from '@/router'
 // 创建axios实例
 const service = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000, // 设置超时时间为10秒
+  timeout: 15000, // 增加超时时间以匹配API文档
   retries: 3,     // 添加重试次数
-  retryDelay: 1000 // 重试间隔时间(ms)
+  retryDelay: 1000, // 重试间隔时间(ms)
+  withCredentials: true, // 重要：支持Cookie，用于Session机制
+  credentials: 'include' // 确保跨域请求携带Cookie
 })
 
 // 请求拦截器
 service.interceptors.request.use(
   config => {
-    // 在请求发送前添加token
-    const token = getToken()
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`
-    } else {
-      // 如果请求需要认证但没有token，直接拒绝
-      const requiresAuth = !config.url.includes('/login') && 
-                         !config.url.includes('/register') &&
-                         !config.url.includes('/public')&&
-                         !config.url.includes('/check-username')
-      if (requiresAuth) {
-        return Promise.reject(new Error('请先登录'))
-      }
+    // Session机制不需要手动添加Token，Cookie会自动携带
+    // 确保所有请求都携带Cookie
+    config.withCredentials = true
+    
+    // 添加Content-Type头（如果没有设置）
+    if (!config.headers['Content-Type']) {
+      config.headers['Content-Type'] = 'application/json'
     }
+    
+    console.log('发送请求:', config.method?.toUpperCase(), config.url)
     return config
   },
   error => {
@@ -45,24 +42,34 @@ service.interceptors.response.use(
     
     // 如果响应中包含错误码，进行相应处理
     if (res.code && res.code !== 200) {
-      // token失效
+      // Session失效或未登录
       if (res.code === 401) {
         store.dispatch('user/logout')
-        router.push('/login')
+        router.push('/user/login')
         throw new Error('登录已过期，请重新登录')
       }
       
-      // 其他业务错误
-      throw new Error(res.message || '请求失败')
+      // 处理用户模块特定错误码
+      const errorMessages = {
+        1001: '用户名已存在',
+        1002: '邮箱已被注册',
+        1003: '用户不存在',
+        1004: '密码错误',
+        1006: '用户名或密码错误',
+        1007: '原密码错误'
+      }
+      
+      const errorMessage = errorMessages[res.code] || res.message || '请求失败'
+      throw new Error(errorMessage)
     }
     
     return res
   },
   async error => {
-    // 处理401错误
+    // 处理401错误（Session过期）
     if (error.response?.status === 401) {
       store.dispatch('user/logout')
-      router.push('/login')
+      router.push('/user/login')
       throw new Error('登录已过期，请重新登录')
     }
 
@@ -94,6 +101,5 @@ service.interceptors.response.use(
     throw error
   }
 )
-
 
 export default service 

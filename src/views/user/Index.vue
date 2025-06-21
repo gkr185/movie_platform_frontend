@@ -275,7 +275,7 @@ export default {
       if (isLoggedIn.value && !userInfo.value) {
         try {
           loading.value = true
-          await store.dispatch('user/getUserInfo')
+          await store.dispatch('user/getCurrentUser')
         } catch (error) {
           console.error('获取用户信息失败:', error)
           // 如果获取用户信息失败，可能是token过期，需要重新登录

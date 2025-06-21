@@ -455,7 +455,7 @@ export default {
         ElMessage.success('支付成功！')
         
         // 刷新用户信息和订单
-        await store.dispatch('user/getUserInfo')
+        await store.dispatch('user/getCurrentUser')
         await fetchUserOrders()
         
         // 停止轮询
@@ -484,7 +484,7 @@ export default {
         if (data.status === 1) {
           paymentStatus.value = 'success'
           ElMessage.success('支付已完成')
-          await store.dispatch('user/getUserInfo')
+          await store.dispatch('user/getCurrentUser')
           await fetchUserOrders()
           stopStatusPolling()
         } else if (data.status === 2) {
@@ -528,7 +528,7 @@ export default {
           if (data.status === 1) {
             paymentStatus.value = 'success'
             ElMessage.success('支付完成！')
-            await store.dispatch('user/getUserInfo')
+            await store.dispatch('user/getCurrentUser')
             await fetchUserOrders()
             stopStatusPolling()
           } else if (data.status === 2) {
@@ -877,7 +877,7 @@ export default {
       transform: scale(1.08);
       border-color: var(--el-color-primary);
       box-shadow: var(--vip-plan-recommended-shadow);
-      z-index: 2;
+      z-index: 3; // 提高推荐卡片的层级
 
       &:hover {
         transform: scale(1.08) translateY(-10px);
@@ -914,10 +914,11 @@ export default {
     font-size: 11px;
     font-weight: 700;
     transform: rotate(45deg);
-    z-index: 4; // 提高z-index确保在最上层
+    z-index: 1; // 降低z-index，避免遮挡其他元素
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
     letter-spacing: 0.5px;
     white-space: nowrap; // 防止文字换行
+    pointer-events: none; // 禁用鼠标事件，避免影响按钮点击
   }
 
   .plan-header {
@@ -1041,6 +1042,8 @@ export default {
     border-radius: 12px;
     margin-top: auto;
     transition: all 0.3s;
+    position: relative;
+    z-index: 2; // 确保按钮在最上层，不被其他元素遮挡
 
     &:hover:not(:disabled) {
       transform: translateY(-2px);

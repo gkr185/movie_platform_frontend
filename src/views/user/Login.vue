@@ -117,9 +117,6 @@ export default {
 
           await store.dispatch('user/login', loginForm)
           
-          // 确保用户信息已加载
-          await store.dispatch('user/getUserInfo')
-          
           ElMessage.success('登录成功')
           
           // 检查是否有重定向地址

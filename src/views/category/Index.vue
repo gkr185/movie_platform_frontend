@@ -37,8 +37,8 @@
       <!-- 分页器 -->
       <div class="pagination-container">
         <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
+          :current-page="currentPage"
+          :page-size="pageSize"
           :total="pagination.total"
           :page-sizes="[12, 24, 36, 48]"
           layout="total, sizes, prev, pager, next, jumper"

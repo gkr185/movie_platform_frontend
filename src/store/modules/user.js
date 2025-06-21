@@ -1,14 +1,15 @@
 import { mockUsers, registeredUsers } from '../data'
 import { 
   login, 
+  logout,
+  getCurrentUser,
+  checkLoginStatus,
   getUserInfo, 
   register, 
-  updateUserInfo, 
-  updateUserSettings,
+  updateProfile, 
   changePassword 
 } from '@/api/user'
 import { addFavorite, removeFavorite, getFavorites } from '@/api/favorite'
-import { getToken, setToken, removeToken } from '@/utils/auth'
 import { 
   addHistory, 
   getHistoryList, 
@@ -24,10 +25,9 @@ export default {
   
   state: {
     user: JSON.parse(localStorage.getItem('user')) || null,
-    token: getToken(),
     userId: null,
     userInfo: null,
-    isLoggedIn: !!getToken(),
+    isLoggedIn: false,
     isVIP: false,
     userSettings: null,
     watchHistory: [],
@@ -39,14 +39,13 @@ export default {
     vipExpireTime: null,
     historyList: [],
     historyTotal: 0,
-    currentMovieHistory: null
+    currentMovieHistory: null,
+    sessionId: null
   },
 
   mutations: {
-    SET_TOKEN(state, token) {
-      state.token = token
-      state.isLoggedIn = !!token
-      setToken(token)
+    SET_SESSION_ID(state, sessionId) {
+      state.sessionId = sessionId
     },
 
     SET_USER_ID(state, userId) {
@@ -57,22 +56,38 @@ export default {
       state.userInfo = userInfo
       state.user = userInfo
       state.isLoggedIn = true
+      state.userId = userInfo.id
       state.userSettings = userInfo.settings || null
       state.isVIP = userInfo.isVip === 1
       state.vipExpireTime = userInfo.vipExpireTime
+      
+      localStorage.setItem('user', JSON.stringify(userInfo))
+    },
+
+    SET_LOGIN_STATUS(state, isLoggedIn) {
+      state.isLoggedIn = isLoggedIn
+      if (!isLoggedIn) {
+        state.user = null
+        state.userId = null
+        state.userInfo = null
+        state.isVIP = false
+        state.vipExpireTime = null
+        state.userSettings = null
+        state.sessionId = null
+        localStorage.removeItem('user')
+      }
     },
 
     SET_VIP_STATUS(state, { isVip, vip_expire_time }) {
       state.isVIP = isVip === 1
       state.vipExpireTime = vip_expire_time
       if (state.userInfo) {
-        state.userInfo.is_vip = isVip
-        state.userInfo.vip_expire_time = vip_expire_time
+        state.userInfo.isVip = isVip
+        state.userInfo.vipExpireTime = vip_expire_time
       }
     },
 
     CLEAR_USER_STATE(state) {
-      state.token = null
       state.userId = null
       state.userInfo = null
       state.isLoggedIn = false
@@ -81,13 +96,14 @@ export default {
       state.userSettings = null
       state.watchHistory = []
       state.favorites = []
-      removeToken()
+      state.sessionId = null
+      localStorage.removeItem('user')
     },
 
     SET_USER(state, user) {
       state.user = user
       state.isLoggedIn = !!user
-      state.isVIP = user?.is_vip === 1
+      state.isVIP = user?.isVip === 1
       if (user) {
         localStorage.setItem('user', JSON.stringify(user))
         state.userSettings = user.settings
@@ -102,14 +118,15 @@ export default {
     },
 
     LOGOUT(state) {
-      state.token = ''
       state.user = null
+      state.userId = null
+      state.userInfo = null
       state.isLoggedIn = false
       state.isVIP = false
       state.userSettings = null
       state.watchHistory = []
       state.favorites = []
-      localStorage.removeItem('token')
+      state.sessionId = null
       localStorage.removeItem('user')
     },
 
@@ -140,7 +157,6 @@ export default {
       }
       state.watchHistory.unshift(historyItem)
 
-      // 限制历史记录数量为50条
       if (state.watchHistory.length > 50) {
         state.watchHistory.pop()
       }
@@ -239,15 +255,52 @@ export default {
   },
 
   actions: {
+    async checkLoginStatus({ commit }) {
+      try {
+        const response = await checkLoginStatus()
+        const isLoggedIn = response.data
+        commit('SET_LOGIN_STATUS', isLoggedIn)
+        
+        if (isLoggedIn) {
+          await this.dispatch('user/getCurrentUser')
+        }
+        
+        return isLoggedIn
+      } catch (error) {
+        console.error('检查登录状态失败:', error)
+        commit('SET_LOGIN_STATUS', false)
+        return false
+      }
+    },
+
+    async getCurrentUser({ commit }) {
+      try {
+        const response = await getCurrentUser()
+        const userInfo = response.data
+        console.log('获取当前用户信息:', userInfo)
+        
+        commit('SET_USER_INFO', userInfo)
+        return response
+      } catch (error) {
+        console.error('获取当前用户信息失败:', error)
+        commit('CLEAR_USER_STATE')
+        throw error
+      }
+    },
+
     async register({ commit, dispatch }, userInfo) {
       try {
         const response = await register(userInfo)
-        const { token, id } = response.data
+        console.log('注册响应:', response)
         
-        commit('SET_TOKEN', token)
-        commit('SET_USER_ID', id)
-        
-        await dispatch('getUserInfo')
+        if (response.data) {
+          const { id } = response.data
+          if (id) {
+            commit('SET_USER_ID', id)
+          }
+          
+          await dispatch('getCurrentUser')
+        }
         
         return response
       } catch (error) {
@@ -259,31 +312,21 @@ export default {
       try {
         const { username, password } = userInfo
         const response = await login({ username: username.trim(), password })
-        const { token, id } = response.data
+        console.log('登录响应:', response)
         
-        commit('SET_TOKEN', token)
-        commit('SET_USER_ID', id)
-        
-        await dispatch('getUserInfo')
-        
-        return response
-      } catch (error) {
-        commit('CLEAR_USER_STATE')
-        throw error
-      }
-    },
-
-    async getUserInfo({ commit, state }) {
-      try {
-        if (!state.userId) {
-          throw new Error('用户ID不存在')
+        if (response.data) {
+          const loginData = response.data
+          
+          if (loginData.sessionId) {
+            commit('SET_SESSION_ID', loginData.sessionId)
+          }
+          
+          if (loginData.user) {
+            commit('SET_USER_INFO', loginData.user)
+          } else {
+            await dispatch('getCurrentUser')
+          }
         }
-        const response = await getUserInfo(state.userId)
-        const userInfo = response.data
-        console.log('API返回的用户信息:', response)
-        console.log('解析后的用户信息:', userInfo)
-        
-        commit('SET_USER_INFO', userInfo)
         
         return response
       } catch (error) {
@@ -292,9 +335,20 @@ export default {
       }
     },
 
-    async updateUserSettings({ commit, state }, settings) {
+    async logout({ commit }) {
       try {
-        const response = await updateUserSettings(state.userId, settings)
+        await logout()
+        commit('LOGOUT')
+      } catch (error) {
+        console.error('登出失败:', error)
+        commit('LOGOUT')
+        throw error
+      }
+    },
+
+    async updateUserSettings({ commit, dispatch }, settings) {
+      try {
+        const response = await updateProfile(settings)
         commit('SET_USER_INFO', response.data)
         return response
       } catch (error) {
@@ -304,15 +358,15 @@ export default {
 
     async changePassword({ state }, passwordData) {
       try {
-        await changePassword(state.userId, passwordData)
+        await changePassword(passwordData)
       } catch (error) {
         throw error
       }
     },
 
-    async updateUserInfo({ commit, state }, userData) {
+    async updateUserInfo({ commit, dispatch }, userData) {
       try {
-        const response = await updateUserInfo(state.userId, userData)
+        const response = await updateProfile(userData)
         commit('SET_USER_INFO', response.data)
         return response
       } catch (error) {
@@ -320,8 +374,14 @@ export default {
       }
     },
 
-    logout({ commit }) {
-      commit('CLEAR_USER_STATE')
+    async initUserState({ dispatch }) {
+      try {
+        const isLoggedIn = await dispatch('checkLoginStatus')
+        return isLoggedIn
+      } catch (error) {
+        console.error('初始化用户状态失败:', error)
+        return false
+      }
     },
 
     async addToHistory({ commit }, { movie, progress }) {
@@ -410,51 +470,9 @@ export default {
 
     async fetchVIPPlans({ commit }) {
       try {
-        // 模拟API调用
         await new Promise(resolve => setTimeout(resolve, 500))
         const plans = [
-          {
-            id: 1,
-            name: '月度会员',
-            price: 19.9,
-            originalPrice: 29.9,
-            duration: 30,
-            recommended: false,
-            features: [
-              '1080p高清视频',
-              '无广告观影体验',
-              '会员专属内容'
-            ]
-          },
-          {
-            id: 2,
-            name: '季度会员',
-            price: 49.9,
-            originalPrice: 79.9,
-            duration: 90,
-            recommended: true,
-            features: [
-              '4K超清视频',
-              '无广告观影体验',
-              '会员专属内容',
-              '离线缓存'
-            ]
-          },
-          {
-            id: 3,
-            name: '年度会员',
-            price: 169.9,
-            originalPrice: 299.9,
-            duration: 365,
-            recommended: false,
-            features: [
-              '4K超清视频',
-              '无广告观影体验',
-              '会员专属内容',
-              '离线缓存',
-              '专属客服'
-            ]
-          }
+          
         ]
         commit('SET_VIP_PLANS', plans)
         return plans
@@ -470,7 +488,6 @@ export default {
           throw new Error('用户未登录')
         }
         
-        // 尝试从真实API获取用户观看统计
         try {
           const response = await axios.get(API_URLS.MOVIE_VIEW.USER_STATS.replace('{userId}', state.userInfo.id))
           const stats = response.data
@@ -479,9 +496,8 @@ export default {
         } catch (apiError) {
           console.warn('API获取观看统计失败，使用模拟数据:', apiError)
           
-          // 如果API调用失败，使用模拟数据
           const mockStats = {
-            totalDuration: state.watchHistory.length * 30, // 假设每部电影平均30分钟
+            totalDuration: state.watchHistory.length * 30,
             totalCount: state.watchHistory.length,
             favoriteCount: state.favorites.length,
             ratingCount: Math.floor(state.watchHistory.length * 0.6),
@@ -503,7 +519,6 @@ export default {
 
     async fetchWatchPreferences({ commit }) {
       try {
-        // 模拟API调用
         await new Promise(resolve => setTimeout(resolve, 500))
         const preferences = [
           { value: 35, name: '科幻' },
@@ -522,7 +537,6 @@ export default {
 
     async purchaseVIP({ commit, state }, { planId, paymentMethod }) {
       try {
-        // 模拟API调用
         await new Promise(resolve => setTimeout(resolve, 1000))
         
         const plan = state.vipPlans.find(p => p.id === planId)
@@ -544,14 +558,6 @@ export default {
       } catch (error) {
         console.error('购买VIP失败:', error)
         throw error
-      }
-    },
-
-    initUserState({ dispatch, state }) {
-      if (state.token && !state.userInfo) {
-        return dispatch('getUserInfo').catch(() => {
-          dispatch('logout')
-        })
       }
     },
 
@@ -590,7 +596,6 @@ export default {
         }
         console.log('删除观看历史:', { userId: state.userInfo.id, movieId })
         await deleteHistory(state.userInfo.id, movieId)
-        // 从列表中移除
         const newList = state.historyList.filter(item => item.id !== movieId)
         commit('SET_HISTORY_LIST', { list: newList, total: state.historyTotal - 1 })
       } catch (error) {
@@ -628,21 +633,17 @@ export default {
       }
     },
 
-    // 生成支付二维码
     async generatePaymentQRCode({ commit, state }, { planId, paymentMethod, amount }) {
       try {
-        // 参数验证
         if (!planId || !paymentMethod || !amount) {
           throw new Error('缺少必要的支付参数')
         }
 
-        // 获取当前用户ID
         const userId = state.userInfo?.id
         if (!userId) {
           throw new Error('用户未登录')
         }
 
-        // 确保参数类型正确
         const params = {
           userId: Number(userId),
           planId: Number(planId),
@@ -650,7 +651,6 @@ export default {
           amount: Number(amount)
         }
 
-        // 验证参数范围
         if (isNaN(params.userId) || params.userId <= 0) {
           throw new Error('无效的用户ID')
         }
@@ -674,14 +674,12 @@ export default {
       } catch (error) {
         console.error('生成支付二维码失败:', error)
         if (error.response) {
-          // 服务器返回错误
           throw new Error(error.response.data.message || '生成支付二维码失败')
         }
         throw error
       }
     },
 
-    // 检查支付状态
     async checkPaymentStatus({ commit }, { orderId }) {
       try {
         if (!orderId) {
@@ -695,7 +693,6 @@ export default {
         }
 
         const status = response.data.status
-        // 将数字状态转换为字符串状态
         const statusMap = {
           0: 'PENDING',
           1: 'SUCCESS',
@@ -711,7 +708,6 @@ export default {
       }
     },
 
-    // 处理支付回调
     async handlePaymentCallback({ commit, dispatch }, { orderId, status }) {
       try {
         const response = await axios.post(API_URLS.PAYMENT.CALLBACK, {
@@ -719,7 +715,7 @@ export default {
           status
         })
         if (status === 'SUCCESS') {
-          await dispatch('fetchUserInfo')
+          await dispatch('getCurrentUser')
         }
         return response.data
       } catch (error) {
@@ -742,7 +738,7 @@ export default {
     vipPlans: state => state.vipPlans,
     watchStats: state => state.watchStats,
     watchPreferences: state => state.watchPreferences,
-    token: state => state.token,
+    token: state => state.sessionId,
     userInfo: state => state.userInfo,
     userId: state => state.userId,
     historyList: state => state.historyList,

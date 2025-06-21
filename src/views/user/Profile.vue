@@ -268,7 +268,7 @@ export default {
     const loadUserInfo = async () => {
       try {
         loading.value = true
-        await store.dispatch('user/getUserInfo')
+        await store.dispatch('user/getCurrentUser')
         console.log('用户信息:', userInfo.value)
         console.log('VIP状态:', userInfo.value?.isVip)
         console.log('VIP到期时间:', userInfo.value?.vipExpireTime)

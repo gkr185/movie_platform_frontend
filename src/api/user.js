@@ -13,11 +13,14 @@ export async function register(data) {
       throw new Error(errors.join('\n'))
     }
 
-    return await request({
+    console.log('发送注册请求:', data)
+    const response = await request({
       url: USER.REGISTER,
       method: 'post',
       data
     })
+    console.log('注册API响应:', response)
+    return response
   } catch (error) {
     return handleError(error, '注册失败')
   }
@@ -32,17 +35,67 @@ export async function login(data) {
       throw new Error(errors.join('\n'))
     }
 
-    return await request({
+    console.log('发送登录请求:', data)
+    const response = await request({
       url: USER.LOGIN,
       method: 'post',
       data
     })
+    console.log('登录API响应:', response)
+    return response
   } catch (error) {
     return handleError(error, '登录失败')
   }
 }
 
-// 获取用户信息
+// 用户登出
+export async function logout() {
+  try {
+    console.log('发送登出请求')
+    const response = await request({
+      url: USER.LOGOUT,
+      method: 'post'
+    })
+    console.log('登出API响应:', response)
+    return response
+  } catch (error) {
+    return handleError(error, '登出失败')
+  }
+}
+
+// 获取当前用户信息
+export async function getCurrentUser() {
+  try {
+    console.log('获取当前用户信息')
+    const response = await request({
+      url: USER.CURRENT,
+      method: 'get'
+    })
+    console.log('当前用户信息API响应:', response)
+    return response
+  } catch (error) {
+    console.error('获取当前用户信息API错误:', error)
+    return handleError(error, '获取用户信息失败')
+  }
+}
+
+// 检查登录状态
+export async function checkLoginStatus() {
+  try {
+    console.log('检查登录状态')
+    const response = await request({
+      url: USER.LOGIN_STATUS,
+      method: 'get'
+    })
+    console.log('登录状态检查响应:', response)
+    return response
+  } catch (error) {
+    console.error('检查登录状态失败:', error)
+    return handleError(error, '检查登录状态失败')
+  }
+}
+
+// 获取用户信息（通过ID）
 export async function getUserInfo(userId) {
   try {
     if (!userId) {
@@ -62,13 +115,9 @@ export async function getUserInfo(userId) {
   }
 }
 
-// 更新用户信息
-export async function updateUserInfo(userId, data) {
+// 更新个人资料
+export async function updateProfile(data) {
   try {
-    if (!userId) {
-      throw new Error('用户ID不能为空')
-    }
-
     // 验证必填字段
     if (data.email) {
       const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/
@@ -84,44 +133,22 @@ export async function updateUserInfo(userId, data) {
       }
     }
 
-    return await request({
-      url: USER.PROFILE.replace('{userId}', userId),
+    console.log('更新个人资料:', data)
+    const response = await request({
+      url: USER.PROFILE_UPDATE,
       method: 'put',
       data
     })
+    console.log('更新个人资料API响应:', response)
+    return response
   } catch (error) {
-    return handleError(error, '更新用户信息失败')
-  }
-}
-
-// 更新用户设置
-export async function updateUserSettings(userId, data) {
-  try {
-    if (!userId) {
-      throw new Error('用户ID不能为空')
-    }
-
-    if (!data || Object.keys(data).length === 0) {
-      throw new Error('设置内容不能为空')
-    }
-
-    return await request({
-      url: `${USER.PROFILE.replace('{userId}', userId)}/settings`,
-      method: 'put',
-      data
-    })
-  } catch (error) {
-    return handleError(error, '更新用户设置失败')
+    return handleError(error, '更新个人资料失败')
   }
 }
 
 // 修改密码
-export async function changePassword(userId, data) {
+export async function changePassword(data) {
   try {
-    if (!userId) {
-      throw new Error('用户ID不能为空')
-    }
-
     if (!data.oldPassword || !data.newPassword) {
       throw new Error('原密码和新密码不能为空')
     }
@@ -130,30 +157,20 @@ export async function changePassword(userId, data) {
       throw new Error('新密码长度必须在6-20个字符之间')
     }
 
-    const requestData = {
-      oldPassword: data.oldPassword,
-      newPassword: data.newPassword
-    }
-
-    return await request({
-      url: USER.CHANGE_PASSWORD.replace('{userId}', userId),
+    console.log('修改密码请求')
+    const response = await request({
+      url: USER.CHANGE_PASSWORD,
       method: 'put',
       params: {
         oldPassword: data.oldPassword,
         newPassword: data.newPassword
       }
     })
+    console.log('修改密码API响应:', response)
+    return response
   } catch (error) {
     return handleError(error, '修改密码失败')
   }
-}
-
-// 注销账户
-export function deleteAccount(userId) {
-  return request({
-    url: USER.PROFILE.replace('{userId}', userId),
-    method: 'delete'
-  })
 }
 
 // 检查用户名是否可用
@@ -241,5 +258,101 @@ export async function checkUsername(username) {
       data: false
     }
   }
-} 
- 
+}
+
+// 获取用户列表（管理员功能）
+export async function getUserList(params = {}) {
+  try {
+    const response = await request({
+      url: USER.LIST,
+      method: 'get',
+      params: {
+        page: params.page || 0,
+        size: params.size || 10,
+        sort: params.sort || 'createTime',
+        direction: params.direction || 'desc'
+      }
+    })
+    return response
+  } catch (error) {
+    return handleError(error, '获取用户列表失败')
+  }
+}
+
+// 搜索用户（管理员功能）
+export async function searchUsers(params = {}) {
+  try {
+    const response = await request({
+      url: USER.SEARCH,
+      method: 'get',
+      params: {
+        keyword: params.keyword || '',
+        page: params.page || 0,
+        size: params.size || 10,
+        sort: params.sort || 'createTime',
+        direction: params.direction || 'desc'
+      }
+    })
+    return response
+  } catch (error) {
+    return handleError(error, '搜索用户失败')
+  }
+}
+
+// 删除用户（管理员功能）
+export async function deleteUser(userId) {
+  try {
+    if (!userId) {
+      throw new Error('用户ID不能为空')
+    }
+
+    const response = await request({
+      url: USER.DELETE.replace('{userId}', userId),
+      method: 'delete'
+    })
+    return response
+  } catch (error) {
+    return handleError(error, '删除用户失败')
+  }
+}
+
+// VIP相关接口
+
+// 更新用户VIP状态
+export async function updateVipStatus(userId, vipData) {
+  try {
+    if (!userId) {
+      throw new Error('用户ID不能为空')
+    }
+
+    const response = await request({
+      url: USER.VIP_UPDATE.replace('{userId}', userId),
+      method: 'put',
+      data: vipData
+    })
+    return response
+  } catch (error) {
+    return handleError(error, '更新VIP状态失败')
+  }
+}
+
+// 取消用户VIP状态
+export async function cancelVipStatus(userId) {
+  try {
+    if (!userId) {
+      throw new Error('用户ID不能为空')
+    }
+
+    const response = await request({
+      url: USER.VIP_CANCEL.replace('{userId}', userId),
+      method: 'delete'
+    })
+    return response
+  } catch (error) {
+    return handleError(error, '取消VIP状态失败')
+  }
+}
+
+// 保留旧的API方法名以保持兼容性
+export const updateUserInfo = updateProfile
+export const updateUserSettings = updateProfile 

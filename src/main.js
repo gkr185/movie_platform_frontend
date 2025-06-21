@@ -4,20 +4,14 @@ import router from './router'
 import store from './store'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
-import { Menu, Close, Sunny, Moon } from '@element-plus/icons-vue'
+import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import '@/assets/styles/theme.scss'
 
 const app = createApp(App)
 
-// 注册图标组件
-app.component('Menu', Menu)
-app.component('Close', Close)
-app.component('Sunny', Sunny)
-app.component('Moon', Moon)
-
-// 初始化用户状态
-if (store.getters['user/token']) {
-  store.dispatch('user/initUserState')
+// 注册ElementPlus图标
+for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, component)
 }
 
 app.use(store)
@@ -27,4 +21,11 @@ app.use(ElementPlus)
 // 初始化主题
 document.documentElement.setAttribute('data-theme', store.state.theme)
 
-app.mount('#app')
+// 在应用启动时初始化用户状态
+store.dispatch('user/initUserState').then(() => {
+  app.mount('#app')
+}).catch(error => {
+  console.error('初始化用户状态失败:', error)
+  // 即使初始化失败也要启动应用
+  app.mount('#app')
+})

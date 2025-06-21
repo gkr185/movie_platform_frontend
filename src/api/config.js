@@ -30,9 +30,18 @@ export const API_URLS = {
   USER: {
     REGISTER: '/api/users/register',
     LOGIN: '/api/users/login',
+    LOGOUT: '/api/users/logout',
+    CURRENT: '/api/users/current',
+    LOGIN_STATUS: '/api/users/login-status',
     PROFILE: '/api/users/{userId}',
+    PROFILE_UPDATE: '/api/users/profile',
     CHECK_USERNAME: '/api/users/check-username',
-    CHANGE_PASSWORD: '/api/users/{userId}/password'
+    CHANGE_PASSWORD: '/api/users/password',
+    LIST: '/api/users/list',
+    SEARCH: '/api/users/search',
+    DELETE: '/api/users/{userId}',
+    VIP_UPDATE: '/api/users/{userId}/vip',
+    VIP_CANCEL: '/api/users/{userId}/vip'
   },
   // 评论相关接口
   COMMENT: {

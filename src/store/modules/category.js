@@ -1,5 +1,6 @@
 import { getCategories, getCategoryTree, getCategoryMovies, getAllMovies, getMovieCategories } from '@/api/category'
 import { ElMessage } from 'element-plus'
+import { getMoviePosterUrl } from '@/utils/image'
 
 const state = {
   categories: [],
@@ -31,9 +32,13 @@ const mutations = {
   SET_CATEGORY_MOVIES(state, { list, total }) {
     state.categoryMovies = list.map(movie => ({
       ...movie,
-      cover: movie.poster_url,
-      score: movie.rating,
-      isVip: movie.is_vip === 1
+      // 统一使用cover字段，并处理URL
+      cover: getMoviePosterUrl(movie),
+      score: movie.rating || 0,
+      year: movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : 
+            (movie.release_date ? new Date(movie.release_date).getFullYear() : ''),
+      isVip: movie.isVip === 1 || movie.is_vip === 1,
+      quality: movie.quality || 'HD'
     }))
     state.pagination.total = total
   },
@@ -44,20 +49,24 @@ const mutations = {
 }
 
 const actions = {
-  // 获取分类列表
-  async fetchCategories({ commit, state }, params = {}) {
+  // 获取所有分类
+  async fetchCategories({ commit }) {
     try {
-      const { page = state.pagination.page, size = state.pagination.size } = params
-      const response = await getCategories({ page, size, ...params })
+      const response = await getCategories()
+      console.log('获取分类列表API响应:', response)
       
-      // 安全地处理响应数据
-      const data = response.data || {}
-      const list = Array.isArray(data) ? data : (data.list || [])
-      const total = data.total || list.length || 0
-      
-      commit('SET_CATEGORIES', { list, total })
-      commit('SET_PAGINATION', { page, size })
-      return list
+      // 根据不同的响应格式处理数据
+      let categories = []
+      if (Array.isArray(response)) {
+        categories = response
+      } else if (response.data && Array.isArray(response.data)) {
+        categories = response.data
+      } else if (response.content && Array.isArray(response.content)) {
+        categories = response.content
+      }
+
+      commit('SET_CATEGORIES', { list: categories })
+      return categories
     } catch (error) {
       console.error('获取分类列表失败:', error)
       throw error
@@ -98,11 +107,20 @@ const actions = {
         id: movie.id,
         title: movie.title || '',
         description: movie.description || '',
-        cover: movie.poster_url || movie.posterUrl || '',
+        // 关键修复：确保正确处理海报URL
+        cover: getMoviePosterUrl(movie),
         score: movie.rating || 0,
-        year: movie.release_year || (movie.release_date ? new Date(movie.release_date).getFullYear() : ''),
-        quality: movie.quality || '',
-        isVip: movie.is_vip === 1 || movie.isVip || false
+        year: movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : 
+              (movie.release_date ? new Date(movie.release_date).getFullYear() : ''),
+        quality: movie.quality || 'HD',
+        isVip: movie.isVip === 1 || movie.is_vip === 1,
+        // 保留原始数据
+        posterUrl: movie.posterUrl || movie.poster_url || '',
+        rating: movie.rating || 0,
+        runtime: movie.runtime || 0,
+        director: movie.director || '',
+        actors: movie.actors || '',
+        genres: movie.genres || ''
       }))
 
       commit('SET_CATEGORY_MOVIES', { list: formattedList, total })
@@ -128,20 +146,31 @@ const actions = {
       const { page = state.pagination.page, size = state.pagination.size } = params
       const response = await getAllMovies({ page, size, ...params })
       
+      console.log('获取所有电影API响应:', response)
+      
       // 处理后端返回的数据
-      const list = response.content || []
-      const total = response.totalElements || 0
+      const list = response.content || response.data || []
+      const total = response.totalElements || response.total || list.length
       
       // 转换电影数据格式
       const formattedList = list.map(movie => ({
         id: movie.id,
         title: movie.title || '',
         description: movie.description || '',
-        posterUrl: movie.poster_url || movie.posterUrl || '',
+        // 关键修复：确保正确处理海报URL
+        cover: getMoviePosterUrl(movie),
+        score: movie.rating || 0,
+        year: movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : 
+              (movie.release_date ? new Date(movie.release_date).getFullYear() : ''),
+        quality: movie.quality || 'HD',
+        isVip: movie.isVip === 1 || movie.is_vip === 1,
+        // 保留原始数据
+        posterUrl: movie.posterUrl || movie.poster_url || '',
         rating: movie.rating || 0,
-        duration: movie.duration || 0,
-        releaseDate: movie.release_date || movie.releaseDate || '',
-        isVip: movie.is_vip || movie.isVip || false
+        runtime: movie.runtime || 0,
+        director: movie.director || '',
+        actors: movie.actors || '',
+        genres: movie.genres || ''
       }))
       
       commit('SET_CATEGORY_MOVIES', { list: formattedList, total })
