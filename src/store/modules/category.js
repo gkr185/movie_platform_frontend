@@ -14,14 +14,95 @@ const state = {
   }
 }
 
+// 构建分类树的辅助函数
+const buildCategoryTree = (categories) => {
+  const tree = []
+  const categoryMap = {}
+
+  // 先按sortOrder排序
+  const sortedCategories = [...categories].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+
+  // 创建所有节点的映射
+  sortedCategories.forEach(category => {
+    categoryMap[category.id] = {
+      ...category,
+      children: [],
+      parent: null
+    }
+  })
+
+  // 构建树结构并设置父子关系
+  sortedCategories.forEach(category => {
+    if (category.parentId === 0 || category.parentId === null) {
+      // 根节点
+      tree.push(categoryMap[category.id])
+    } else if (categoryMap[category.parentId]) {
+      // 子节点
+      const child = categoryMap[category.id]
+      const parent = categoryMap[category.parentId]
+      child.parent = parent
+      parent.children.push(child)
+    }
+  })
+
+  // 对每个父节点的子节点也按sortOrder排序
+  tree.forEach(rootCategory => {
+    if (rootCategory.children && rootCategory.children.length > 0) {
+      rootCategory.children.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+    }
+  })
+
+  // 最后对根分类也按sortOrder排序
+  tree.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+
+  return tree
+}
+
+// 扁平化分类树，用于导航菜单显示
+const flattenCategoryTree = (tree, level = 0) => {
+  const result = []
+  
+  // 确保树结构已经按sortOrder排序
+  const sortedTree = [...tree].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+  
+  sortedTree.forEach(category => {
+    // 添加层级标识符
+    const displayName = level > 0 ? '　'.repeat(level) + '└ ' + category.name : category.name
+    result.push({
+      ...category,
+      displayName,
+      level
+    })
+    
+    // 递归处理子分类（子分类也需要排序）
+    if (category.children && category.children.length > 0) {
+      const sortedChildren = [...category.children].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+      result.push(...flattenCategoryTree(sortedChildren, level + 1))
+    }
+  })
+  
+  return result
+}
+
 const mutations = {
   SET_CATEGORIES(state, { list = [] }) {
-    state.categories = list.map(category => ({
+    // 标准化分类数据
+    const normalizedCategories = list.map(category => ({
       id: category.id,
       name: category.name || '',
       description: category.description || '',
-      parentId: category.parent_id || 0
+      parentId: category.parentId || category.parent_id || 0,
+      sortOrder: category.sortOrder || category.sort_order || 0,
+      status: category.status || 1
     }))
+    
+    // 按sortOrder排序
+    const sortedCategories = normalizedCategories.sort((a, b) => a.sortOrder - b.sortOrder)
+    
+    state.categories = sortedCategories
+    
+    // 构建分类树（内部已经处理排序）
+    state.categoryTree = buildCategoryTree(sortedCategories)
   },
   SET_CATEGORY_TREE(state, tree) {
     state.categoryTree = tree
@@ -215,6 +296,11 @@ const actions = {
 const getters = {
   categoryList: state => state.categories,
   categoryTree: state => state.categoryTree,
+  // 用于导航菜单的扁平化分类列表
+  flatCategoryList: state => flattenCategoryTree(state.categoryTree),
+  // 只获取根分类（已排序）
+  rootCategories: state => state.categories.filter(cat => cat.parentId === 0)
+                                           .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)),
   currentCategory: state => state.currentCategory,
   categoryMovies: state => state.categoryMovies,
   pagination: state => state.pagination,
@@ -223,6 +309,22 @@ const getters = {
     return state.categories.filter(category => 
       category.movies && category.movies.includes(movieId)
     )
+  },
+  // 根据ID获取分类（包括子分类）
+  getCategoryById: state => categoryId => {
+    const findCategory = (categories, id) => {
+      for (const category of categories) {
+        if (category.id === id) {
+          return category
+        }
+        if (category.children && category.children.length > 0) {
+          const found = findCategory(category.children, id)
+          if (found) return found
+        }
+      }
+      return null
+    }
+    return findCategory(state.categoryTree, categoryId)
   }
 }
 
