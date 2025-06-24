@@ -6,6 +6,8 @@ import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import '@/assets/styles/theme.scss'
+// 导入Element Plus中文语言包
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
 
 const app = createApp(App)
 
@@ -16,7 +18,10 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 
 app.use(store)
 app.use(router)
-app.use(ElementPlus)
+// 使用Element Plus并配置中文语言包
+app.use(ElementPlus, {
+  locale: zhCn,
+})
 
 // 初始化主题
 document.documentElement.setAttribute('data-theme', store.state.theme)
