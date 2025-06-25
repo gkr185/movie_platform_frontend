@@ -294,12 +294,15 @@ export default {
         console.log('注册响应:', response)
         
         if (response.data) {
+          // 注册成功后不需要获取当前用户信息，因为用户还未登录
+          // 注册成功后应该跳转到登录页面
           const { id } = response.data
           if (id) {
             commit('SET_USER_ID', id)
           }
           
-          await dispatch('getCurrentUser')
+          // 注册成功后清除可能存在的旧用户状态
+          commit('CLEAR_USER_STATE')
         }
         
         return response

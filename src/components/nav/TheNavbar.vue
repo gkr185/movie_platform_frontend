@@ -4,8 +4,8 @@
       <!-- 左侧区域：Logo和导航菜单 -->
       <div class="nav-left">
         <router-link to="/" class="logo">
-          <img src="@/assets/logo.png" alt="logo" class="logo-img">
-          <span class="logo-text">在线电影平台</span>
+          <img src="@/assets/avatar.jpg" alt="logo" class="logo-img">
+          <span class="logo-text">DCM在线电影平台</span>
         </router-link>
 
         <div class="nav-menu">
@@ -278,7 +278,7 @@ export default {
   flex-shrink: 0;
   
   .logo-img {
-    height: 36px;
+    height: 50px;
     width: auto;
   }
   
