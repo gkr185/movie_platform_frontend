@@ -5,9 +5,9 @@
       <div class="header-content">
         <h1 class="page-title">
           <el-icon class="title-icon"><Calendar /></el-icon>
-          最新上映
+          最新更新
         </h1>
-        <p class="page-subtitle">探索刚刚上映的精彩新片</p>
+        <p class="page-subtitle">探索近期最新上线的精彩影片</p>
       </div>
       <div class="header-decoration">
         <div class="decoration-circle"></div>

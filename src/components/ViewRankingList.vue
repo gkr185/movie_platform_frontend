@@ -524,7 +524,7 @@ export default {
           .movie-title {
             font-size: 16px;
             font-weight: 600;
-            color: #333;
+            color: #a7a7a7;
             margin: 0 0 8px 0;
             line-height: 1.4;
             display: -webkit-box;

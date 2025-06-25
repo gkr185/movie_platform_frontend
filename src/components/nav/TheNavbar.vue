@@ -4,8 +4,8 @@
       <!-- 左侧区域：Logo和导航菜单 -->
       <div class="nav-left">
         <router-link to="/" class="logo">
-          <img src="@/assets/avatar.jpg" alt="logo" class="logo-img">
-          <span class="logo-text">DCM在线电影平台</span>
+          <img src="@/assets/logo1.png" alt="logo" class="logo-img">
+          <span class="logo-text">智影方舟在线电影平台</span>
         </router-link>
 
         <div class="nav-menu">
@@ -129,7 +129,7 @@ export default {
       { path: '/', text: '首页' },
       { path: '/category', text: '分类' },
       { path: '/ranking', text: '排行榜' },
-      { path: '/newest', text: '最新上映' },
+      { path: '/newest', text: '最新上线' },
       { path: '/news', text: '资讯' }
     ]
     

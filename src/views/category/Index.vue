@@ -332,17 +332,17 @@ export default {
 
 .nav-container {
   display: flex;
-  min-height: 500px;
+  min-height: 300px;
 }
 
 .root-categories {
-  width: 240px;
+  width: 200px;
   background: linear-gradient(135deg, var(--input-bg-color), var(--card-bg-color));
   border-right: 2px solid var(--border-color);
   
   .category-section-title {
-    padding: 20px 20px 15px;
-    font-size: 16px;
+    padding: 16px 16px 12px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text-color);
     border-bottom: 1px solid var(--border-color);
@@ -350,29 +350,29 @@ export default {
   }
   
   .root-category-list {
-    padding: 10px 0;
+    padding: 8px 0;
   }
   
   .root-category-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 20px;
+    padding: 8px 16px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     color: var(--text-color);
-    border-left: 3px solid transparent;
+    border-left: 2px solid transparent;
+    margin: 1px 0;
     
     &:hover {
-      background: rgba(64, 158, 255, 0.08);
-      transform: translateX(2px);
+      background: rgba(64, 158, 255, 0.06);
+      transform: translateX(1px);
     }
     
     &.active {
-      background: rgba(64, 158, 255, 0.12);
+      background: rgba(64, 158, 255, 0.1);
       border-left-color: #409eff;
       color: #409eff;
-      font-weight: 500;
       
       .category-count {
         background: #409eff;
@@ -382,18 +382,19 @@ export default {
     
     .category-name {
       flex: 1;
-      font-size: 14px;
+      font-size: 13px;
+      font-weight: 400;
     }
     
     .category-count {
-      padding: 2px 8px;
+      padding: 1px 6px;
       background: var(--border-color);
       color: var(--text-color-light);
-      border-radius: 12px;
-      font-size: 12px;
-      min-width: 20px;
+      border-radius: 8px;
+      font-size: 11px;
+      min-width: 16px;
       text-align: center;
-      transition: all 0.3s ease;
+      transition: all 0.2s ease;
     }
   }
 }
