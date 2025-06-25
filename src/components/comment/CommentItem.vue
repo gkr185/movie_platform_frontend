@@ -22,8 +22,9 @@
           <span class="time">{{ formatTime(comment.createTime) }}</span>
         </div>
         <div class="comment-actions">
+          点赞
           <el-button 
-            type="text" 
+            type="点赞" 
             size="small"
             :class="{ 'is-liked': comment.liked }"
             @click="handleLike"
@@ -31,8 +32,9 @@
             <el-icon><Like /></el-icon>
             {{ comment.likeCount || 0 }}
           </el-button>
+          点踩
           <el-button 
-            type="text" 
+            type="点踩" 
             size="small"
             :class="{ 'is-disliked': comment.disliked }"
             @click="handleDislike"

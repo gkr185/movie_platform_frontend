@@ -412,7 +412,7 @@ export default {
           parentId,
           data: {
             liked: true,
-            likeCount: (response.likeCount || 0) + 1
+            likeCount: (response.likeCount || 0) 
           }
         })
         return response
@@ -439,7 +439,7 @@ export default {
           parentId,
           data: {
             liked: false,
-            likeCount: Math.max((response.likeCount || 0) - 1, 0)
+            likeCount: Math.max((response.likeCount || 0) , 0)
           }
         })
         return response
