@@ -17,7 +17,8 @@ export const fileUploadApi = {
       data: formData,
       headers: {
         'Content-Type': 'multipart/form-data'
-      }
+      },
+      timeout: 60000 // 60秒超时时间，适合文件上传
     })
   },
 
@@ -35,7 +36,8 @@ export const fileUploadApi = {
       data: formData,
       headers: {
         'Content-Type': 'multipart/form-data'
-      }
+      },
+      timeout: 60000 // 60秒超时时间，适合文件上传
     })
   },
 
@@ -56,7 +58,8 @@ export const fileUploadApi = {
       data: formData,
       headers: {
         'Content-Type': 'multipart/form-data'
-      }
+      },
+      timeout: 120000 // 120秒超时时间，适合批量上传
     })
   },
 

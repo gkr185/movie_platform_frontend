@@ -328,7 +328,6 @@ export default {
       
       // 检查 response 是否存在
       if (!response) {
-        ElMessage.error('上传失败：服务器无响应')
         emit('upload-error', { message: '服务器无响应' }, file)
         return
       }
