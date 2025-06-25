@@ -155,19 +155,7 @@
         </div>
       </div>
 
-      <!-- 分页 -->
-      <div class="pagination-container" v-if="total > pageSize && !loading">
-        <el-pagination
-          :current-page="currentPage"
-          :page-size="pageSize"
-          :total="total"
-          :page-sizes="[12, 24, 36, 48]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-          background
-        />
-      </div>
+      
     </div>
   </div>
 </template>
