@@ -126,8 +126,6 @@
             
             <div class="stats-container">
               <div v-if="type === 'hot'" class="stat-item plays">
-                <el-icon class="stat-icon"><VideoPlay /></el-icon>
-                <span class="stat-text">{{ formatNumber(movie.playCount) }} 播放</span>
               </div>
               <div v-else class="stat-item rating">
                 <el-icon class="stat-icon"><Star /></el-icon>
